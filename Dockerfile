@@ -1,5 +1,5 @@
 # Use an official Node runtime as the base image
-FROM node:20.7.0 as build
+FROM node:22.15.0 as build
 
 # Set the working directory in the container to /app
 WORKDIR /app
@@ -10,7 +10,7 @@ ENV NEXT_PUBLIC_BRAND_DESCRIPTION="Unified identity and authentication service f
 ENV NEXT_PUBLIC_CONTACT_EMAIL=tech@zbfintech.com
 ENV NEXT_PUBLIC_SUPPORT_EMAIL=tech@zbfintech.com
 # Copy package.json to the working directory
-COPY package*.json ./
+COPY package*.json pnpm-lock.yaml ./
 
 # Install pnpm and the application dependencies
 RUN npm install -g pnpm && pnpm install
