@@ -10,7 +10,7 @@ ENV NEXT_PUBLIC_BRAND_DESCRIPTION="Unified identity and authentication service f
 ENV NEXT_PUBLIC_CONTACT_EMAIL=tech@zbfintech.com
 ENV NEXT_PUBLIC_SUPPORT_EMAIL=tech@zbfintech.com
 # Copy package.json to the working directory
-COPY package*.json pnpm-lock.yaml ./
+COPY package*.json pnpm-lock.yaml .npmrc ./
 
 # Install pnpm and the application dependencies
 RUN npm install -g pnpm && pnpm install
