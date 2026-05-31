@@ -13,7 +13,7 @@ ENV NEXT_PUBLIC_SUPPORT_EMAIL=tech@zbfintech.com
 COPY package*.json pnpm-lock.yaml .npmrc ./
 
 # Install pnpm and the application dependencies
-RUN npm install -g pnpm && pnpm install
+RUN npm install -g pnpm@9 && pnpm install
 
 # Copy the rest of the application code to the working directory
 COPY . .
