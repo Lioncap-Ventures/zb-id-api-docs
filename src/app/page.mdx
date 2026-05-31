@@ -1,0 +1,43 @@
+import { Guides } from '@/components/Guides'
+import { Resources } from '@/components/Resources'
+import { HeroPattern } from '@/components/HeroPattern'
+
+export const metadata = {
+  title: 'ZB ID API Documentation',
+  description:
+    'ZB ID is the unified identity platform for ZB Financial Holdings. Authenticate users, manage sessions, and control access across every ZB product from a single API.',
+}
+
+export const sections = [
+  { title: 'Guides', id: 'guides' },
+  { title: 'Resources', id: 'resources' },
+]
+
+<HeroPattern />
+
+# ZB ID API Documentation
+
+ZB ID is the unified identity platform for ZB Financial Holdings. It provides a single API for user authentication, session management, role-based access control, and OAuth2 client credentials across every ZB product and service. {{ className: 'lead' }}
+
+<div className="not-prose mt-6 mb-16 flex gap-3">
+  <Button href="/quickstart" arrow="right">
+    <>Quickstart</>
+  </Button>
+  <Button href="/authentication" variant="outline">
+    <>Authentication</>
+  </Button>
+</div>
+
+## Getting started {{ anchor: false }}
+
+To get started, register a user account through the API, obtain your access and refresh tokens, and begin making authenticated requests. If you are building a service-to-service integration, register an OAuth2 client and use the client credentials flow instead. {{ className: 'lead' }}
+
+<div className="not-prose">
+  <Button href="/quickstart" variant="text" arrow="right">
+    <>Follow the quickstart guide</>
+  </Button>
+</div>
+
+<Guides />
+
+<Resources />

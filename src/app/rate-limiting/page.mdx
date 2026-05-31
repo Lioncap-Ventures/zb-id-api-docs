@@ -1,0 +1,297 @@
+export const metadata = {
+  title: 'Rate Limiting',
+  description:
+    'Understand rate limits in the ZB ID API and learn how to handle 429 responses with exponential backoff.',
+}
+
+export const sections = [
+  { title: 'Rate limit tiers', id: 'rate-limit-tiers' },
+  { title: 'Rate limit scope', id: 'rate-limit-scope' },
+  { title: 'Handling 429 responses', id: 'handling-429-responses' },
+  { title: 'Implementation details', id: 'implementation-details' },
+]
+
+# Rate Limiting
+
+The ZB ID API enforces rate limits to protect against brute-force attacks, abuse, and to ensure fair usage across all clients. Each endpoint has specific limits based on the sensitivity of the operation. {{ className: 'lead' }}
+
+---
+
+## Rate limit tiers {{ id: 'rate-limit-tiers' }}
+
+<Row>
+  <Col>
+
+    Rate limits vary by endpoint and are tuned based on the risk profile of each operation. Authentication endpoints have stricter limits to prevent credential stuffing and brute-force attacks.
+
+    ### Authentication endpoints
+
+    <Properties>
+      <Property name="Login" type="5 requests / 10 minutes">
+        Applies to `POST /auth/login`. Prevents brute-force OTP guessing. Limit is tracked per phone number.
+      </Property>
+      <Property name="Register" type="10 requests / 60 minutes">
+        Applies to `POST /auth/register`. Prevents mass account creation. Limit is tracked per phone number.
+      </Property>
+      <Property name="Token refresh" type="30 requests / 60 minutes">
+        Applies to `POST /auth/refresh`. Allows reasonable token rotation. Limit is tracked per user.
+      </Property>
+    </Properties>
+
+    ### OAuth / Client credentials
+
+    <Properties>
+      <Property name="Client credentials" type="60 requests / minute (default)">
+        Applies to `POST /oauth/token`. The default limit is 60 requests per minute, but each client application can have a custom `rateLimitPerMinute` value configured during client registration. Contact your administrator to adjust this limit for high-throughput integrations.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **Custom rate limits:** OAuth client applications can be provisioned with a custom `rateLimitPerMinute` value that overrides the default of 60 requests per minute. This is configured at the time of client registration or through an administrative update.
+    </Note>
+
+    ### Rate limit summary table
+
+    | Endpoint | Limit | Window |
+    |----------|-------|--------|
+    | Login | 5 requests | 10 minutes |
+    | Register | 10 requests | 60 minutes |
+    | Token refresh | 30 requests | 60 minutes |
+    | Client credentials | 60 requests (configurable) | 1 minute |
+
+  </Col>
+</Row>
+
+---
+
+## Rate limit scope {{ id: 'rate-limit-scope' }}
+
+<Row>
+  <Col>
+
+    Rate limits are scoped to different identifiers depending on the endpoint. This means that one user hitting a limit does not affect other users.
+
+    ### Scope by endpoint
+
+    <Properties>
+      <Property name="Login and Register" type="Per phone number">
+        Limits are tracked by the phone number in the request body. Each unique phone number has its own counter and sliding window.
+      </Property>
+      <Property name="Token refresh" type="Per user">
+        Limits are tracked by the authenticated user's identity. Each user has their own counter regardless of which device or client they use.
+      </Property>
+      <Property name="Client credentials (OAuth)" type="Per client_id">
+        Limits are tracked by the `client_id` in the token request. Each registered OAuth client has its own counter and can have its own custom limit.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **Per-phone scoping** on login and register endpoints means that an attacker targeting one phone number will not exhaust the rate limit for other phone numbers. This protects legitimate users from being locked out due to attacks on unrelated accounts.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Handling 429 responses {{ id: 'handling-429-responses' }}
+
+<Row>
+  <Col>
+
+    When you exceed a rate limit, the API returns a `429 Too Many Requests` response. Your application should implement exponential backoff to retry gracefully.
+
+    ### 429 Response format
+
+    ```json
+    {
+      "error": "TOO_MANY_REQUESTS",
+      "message": "Rate limit exceeded. Please try again later.",
+      "status": 429,
+      "timestamp": "2026-05-31T10:30:00.123Z"
+    }
+    ```
+
+    ### Exponential backoff strategy
+
+    When you receive a 429 response, wait before retrying using increasing delays:
+
+    1. **First retry:** Wait 2 seconds
+    2. **Second retry:** Wait 4 seconds
+    3. **Third retry:** Wait 8 seconds
+    4. **Fourth retry:** Wait 16 seconds
+    5. **Max retries:** Stop after 4-5 attempts and surface the error to the user
+
+    Adding a small random jitter (e.g., 0 to 500 ms) to each delay helps prevent multiple clients from retrying at exactly the same time.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Exponential backoff">
+
+    ```bash {{ title: 'cURL' }}
+    # Simple retry loop with exponential backoff
+    DELAY=2
+    MAX_RETRIES=4
+
+    for i in $(seq 1 $MAX_RETRIES); do
+      RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login \
+        -H "Content-Type: application/json" \
+        -d '{"phone": "+263771234567", "otp": "123456"}')
+
+      if [ "$RESPONSE" -ne 429 ]; then
+        echo "Request succeeded with status $RESPONSE"
+        break
+      fi
+
+      echo "Rate limited. Waiting ${DELAY}s before retry $i..."
+      sleep $DELAY
+      DELAY=$((DELAY * 2))
+    done
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+    import time
+    import random
+
+    def request_with_backoff(url, payload, max_retries=4):
+        """Send request with exponential backoff on 429."""
+        delay = 2
+
+        for attempt in range(max_retries):
+            response = requests.post(
+                url,
+                json=payload,
+                headers={'Content-Type': 'application/json'}
+            )
+
+            if response.status_code != 429:
+                return response
+
+            # Add jitter to prevent thundering herd
+            jitter = random.uniform(0, 0.5)
+            wait_time = delay + jitter
+            print(f"Rate limited. Waiting {wait_time:.1f}s (attempt {attempt + 1})")
+            time.sleep(wait_time)
+            delay *= 2
+
+        raise Exception(f"Still rate limited after {max_retries} retries")
+
+    # Usage
+    result = request_with_backoff(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+        {'phone': '+263771234567', 'otp': '123456'}
+    )
+    print(result.json())
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    async function requestWithBackoff(url, options, maxRetries = 4) {
+      let delay = 2000 // Start at 2 seconds
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const response = await fetch(url, options)
+
+        if (response.status !== 429) {
+          return response
+        }
+
+        // Add jitter to prevent thundering herd
+        const jitter = Math.random() * 500
+        const waitTime = delay + jitter
+
+        console.log(
+          `Rate limited. Waiting ${(waitTime / 1000).toFixed(1)}s (attempt ${attempt + 1})`
+        )
+        await new Promise((resolve) => setTimeout(resolve, waitTime))
+        delay *= 2
+      }
+
+      throw new Error(`Still rate limited after ${maxRetries} retries`)
+    }
+
+    // Usage
+    const response = await requestWithBackoff(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: '+263771234567',
+          otp: '123456',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    console.log(data)
+    ```
+
+    </CodeGroup>
+
+  </Col>
+</Row>
+
+---
+
+## Implementation details {{ id: 'implementation-details' }}
+
+<Row>
+  <Col>
+
+    ### Redis-based sliding window
+
+    ZB ID uses a Redis-backed sliding window algorithm for rate limiting. This provides accurate, per-key tracking with minimal overhead.
+
+    **How it works:**
+
+    - Each rate-limited action (e.g., login attempt for a specific phone number) is recorded as an entry in a Redis sorted set
+    - Entries older than the configured window (e.g., 10 minutes for login) are automatically pruned
+    - The count of remaining entries determines whether the request is allowed or rejected
+    - This approach avoids the "boundary burst" problem that fixed-window counters can have
+
+    ### Graceful degradation
+
+    If the Redis instance becomes unavailable, the rate limiter degrades gracefully:
+
+    - Requests are **allowed through** rather than blocked
+    - The API continues to function normally without rate limiting
+    - An internal alert is triggered so the operations team can restore Redis
+    - Once Redis recovers, rate limiting resumes automatically with a fresh window
+
+    This design ensures that a Redis outage never causes a complete service disruption for legitimate users.
+
+    ### Best practices
+
+    1. **Cache tokens** instead of requesting new ones on every API call
+    2. **Use refresh tokens** to rotate access tokens rather than re-authenticating
+    3. **Implement backoff** in all client libraries to handle 429 responses automatically
+    4. **Monitor your usage** and request a custom `rateLimitPerMinute` for OAuth clients if your integration requires higher throughput
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **Graceful degradation:** If Redis is temporarily unavailable, the ZB ID API allows requests through without rate limiting. This means rate limits are enforced on a best-effort basis and will not block legitimate traffic during infrastructure issues.
+    </Note>
+
+    ### Quick reference
+
+    | Detail | Value |
+    |--------|-------|
+    | Algorithm | Sliding window (Redis sorted sets) |
+    | Storage | Redis |
+    | Degradation | Fail-open (requests allowed if Redis is down) |
+    | Scope | Per phone, per user, or per client_id |
+    | Response code | 429 Too Many Requests |
+
+  </Col>
+</Row>

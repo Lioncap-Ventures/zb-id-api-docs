@@ -1,0 +1,54 @@
+export const metadata = {
+  title: 'Webhooks',
+  description:
+    'Webhook support for ZB ID user events is planned for a future release.',
+}
+
+# Webhooks
+
+Webhook support for ZB ID is coming soon. This feature will allow you to receive real-time HTTP POST notifications when key user events occur in the system. {{ className: 'lead' }}
+
+---
+
+<Row>
+  <Col>
+
+    ### Planned event types
+
+    The following webhook event types are planned for the initial release:
+
+    <Properties>
+      <Property name="user.registered">
+        Fired when a new user account is created through the registration flow.
+      </Property>
+      <Property name="user.login">
+        Fired when a user successfully authenticates and receives an access token.
+      </Property>
+      <Property name="user.status_changed">
+        Fired when a user's account status changes (e.g., activated, suspended, or locked).
+      </Property>
+      <Property name="client.created">
+        Fired when a new OAuth client application is registered in the system.
+      </Property>
+    </Properties>
+
+    ### What to expect
+
+    Once webhooks are available, you will be able to:
+
+    - Register HTTPS endpoint URLs to receive event notifications
+    - Subscribe to specific event types relevant to your integration
+    - Verify webhook signatures to confirm that payloads originate from ZB ID
+    - Receive structured JSON payloads with event data and timestamps
+
+    This page will be updated with full documentation, code examples, and integration guides when the feature is released.
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **Coming soon.** Webhook support is currently under development. Check back for updates, or reach out to the ZB ID team if you have questions about the timeline or specific requirements for your integration.
+    </Note>
+
+  </Col>
+</Row>

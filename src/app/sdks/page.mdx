@@ -1,0 +1,46 @@
+export const metadata = {
+  title: 'SDKs',
+  description:
+    'Official SDKs for ZB ID are planned. In the meantime, use the REST API directly with any HTTP client.',
+}
+
+# SDKs
+
+Official SDKs for ZB ID are coming soon. We are planning client libraries for the most popular languages and platforms to simplify integration with the ZB ID API. {{ className: 'lead' }}
+
+---
+
+<Row>
+  <Col>
+
+    ### Planned SDKs
+
+    The following official SDKs are under development:
+
+    <Properties>
+      <Property name="Python">
+        A Python package for server-side integrations, background workers, and scripts. Will support all authentication flows, user management, and OAuth token operations.
+      </Property>
+      <Property name="JavaScript / TypeScript">
+        An npm package for Node.js backends and TypeScript projects. Will include full type definitions and support for both CommonJS and ES module imports.
+      </Property>
+      <Property name="Java / Kotlin">
+        A JVM library for Android applications and Java-based backend services. Will support Kotlin coroutines for async operations.
+      </Property>
+    </Properties>
+
+    ### Using the REST API directly
+
+    Until official SDKs are available, you can integrate with ZB ID using the REST API directly. Any HTTP client in any programming language will work. The API accepts and returns JSON, making it straightforward to integrate from any environment.
+
+    See the [Quickstart](/quickstart) page for complete examples of authenticating and making your first API request using cURL, Python, and Node.js.
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **No SDK needed.** The ZB ID REST API is designed to be simple and consistent. You can get started immediately using `fetch`, `requests`, `curl`, or any other HTTP client. Visit the [Quickstart](/quickstart) page for working examples.
+    </Note>
+
+  </Col>
+</Row>

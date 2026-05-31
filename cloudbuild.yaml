@@ -1,0 +1,61 @@
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_BASE=${_API_URL}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_DOCS_BASE=${_DOCS_URL}'
+      - '-t'
+      - 'gcr.io/lioncap-ventures-frontend/zb-id-api-docs:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/lioncap-ventures-frontend/zb-id-api-docs:latest'
+      - '.'
+
+  # Push the Docker image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/lioncap-ventures-frontend/zb-id-api-docs:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/lioncap-ventures-frontend/zb-id-api-docs:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'zb-id-api-docs'
+      - '--image'
+      - 'gcr.io/lioncap-ventures-frontend/zb-id-api-docs:$COMMIT_SHA'
+      - '--region'
+      - 'europe-north1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '3'
+      - '--port'
+      - '3000'
+      - '--project'
+      - 'lioncap-ventures-frontend'
+
+images:
+  - 'gcr.io/lioncap-ventures-frontend/zb-id-api-docs:$COMMIT_SHA'
+  - 'gcr.io/lioncap-ventures-frontend/zb-id-api-docs:latest'
+
+substitutions:
+  _API_URL: ''
+  _DOCS_URL: ''
+
+options:
+  logging: CLOUD_LOGGING_ONLY

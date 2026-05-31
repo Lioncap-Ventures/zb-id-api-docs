@@ -1,0 +1,484 @@
+export const metadata = {
+  title: 'Users',
+  description:
+    'Manage user profiles, look up users by phone number, and control user account status.',
+}
+
+export const sections = [
+  { title: 'The user model', id: 'the-user-model' },
+  { title: 'Get current user', id: 'get-current-user' },
+  { title: 'Update current user', id: 'update-current-user' },
+  { title: 'Get user by ID', id: 'get-user-by-id' },
+  { title: 'Look up user by phone', id: 'look-up-user-by-phone' },
+  { title: 'Update user status', id: 'update-user-status' },
+]
+
+# Users
+
+Users represent individuals registered in the ZB ID system. Each user has a profile, a KYC verification tier, and an account status. Authenticated users can view and update their own profiles, while administrators can look up and manage any user account. {{ className: 'lead' }}
+
+---
+
+## The user model {{ id: 'the-user-model' }}
+
+<Row>
+  <Col>
+
+    The user model contains all the information associated with a registered account, including identity details, verification status, and assigned roles.
+
+    ### Properties
+
+    <Properties>
+      <Property name="id" type="string (UUID)">
+        Unique identifier for the user.
+      </Property>
+      <Property name="phone" type="string">
+        The user's phone number in E.164 format (e.g., `+263771234567`).
+      </Property>
+      <Property name="email" type="string">
+        The user's email address. May be `null` if not provided.
+      </Property>
+      <Property name="firstName" type="string">
+        The user's first name.
+      </Property>
+      <Property name="lastName" type="string">
+        The user's last name.
+      </Property>
+      <Property name="kycTier" type="string">
+        The user's KYC verification level. One of `NONE`, `BASIC`, `STANDARD`, or `ENHANCED`.
+      </Property>
+      <Property name="status" type="string">
+        The current account status. One of `ACTIVE`, `SUSPENDED`, `LOCKED`, or `DEACTIVATED`.
+      </Property>
+      <Property name="roles" type="array">
+        List of roles assigned to the user (e.g., `["user"]` or `["user", "admin"]`).
+      </Property>
+      <Property name="createdAt" type="string (ISO 8601)">
+        Timestamp of when the user account was created.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'User object' }}
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone": "+263771234567",
+      "email": "tendai.moyo@example.com",
+      "firstName": "Tendai",
+      "lastName": "Moyo",
+      "kycTier": "BASIC",
+      "status": "ACTIVE",
+      "roles": ["user"],
+      "createdAt": "2026-05-15T08:30:00Z"
+    }
+    ```
+
+    <Note>
+      **KYC Tiers:**
+      - `NONE` - No verification completed
+      - `BASIC` - Phone number verified
+      - `STANDARD` - ID document verified
+      - `ENHANCED` - Full biometric and address verification
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Get current user {{ id: 'get-current-user', tag: 'GET', label: '/users/me' }}
+
+<Row>
+  <Col>
+
+    Retrieve the profile of the currently authenticated user. Requires a valid Bearer token.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="GET" label="/users/me">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.get(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+        }
+    )
+
+    user = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+      {
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+        },
+      }
+    )
+
+    const user = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone": "+263771234567",
+      "email": "tendai.moyo@example.com",
+      "firstName": "Tendai",
+      "lastName": "Moyo",
+      "kycTier": "BASIC",
+      "status": "ACTIVE",
+      "roles": ["user"],
+      "createdAt": "2026-05-15T08:30:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Update current user {{ id: 'update-current-user', tag: 'PATCH', label: '/users/me' }}
+
+<Row>
+  <Col>
+
+    Update the profile of the currently authenticated user. Only the fields you include in the request body will be updated.
+
+    ### Optional attributes
+
+    <Properties>
+      <Property name="firstName" type="string">
+        Updated first name.
+      </Property>
+      <Property name="lastName" type="string">
+        Updated last name.
+      </Property>
+      <Property name="email" type="string">
+        Updated email address.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="PATCH" label="/users/me">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X PATCH https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "firstName": "Tendai",
+        "lastName": "Moyo-Ncube",
+        "email": "tendai.ncube@example.com"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.patch(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'firstName': 'Tendai',
+            'lastName': 'Moyo-Ncube',
+            'email': 'tendai.ncube@example.com',
+        }
+    )
+
+    updated_user = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+      {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: 'Tendai',
+          lastName: 'Moyo-Ncube',
+          email: 'tendai.ncube@example.com',
+        }),
+      }
+    )
+
+    const updatedUser = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone": "+263771234567",
+      "email": "tendai.ncube@example.com",
+      "firstName": "Tendai",
+      "lastName": "Moyo-Ncube",
+      "kycTier": "BASIC",
+      "status": "ACTIVE",
+      "roles": ["user"],
+      "createdAt": "2026-05-15T08:30:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Get user by ID {{ id: 'get-user-by-id', tag: 'GET', label: '/users/{id}' }}
+
+<Row>
+  <Col>
+
+    Retrieve a user by their unique ID. This endpoint requires the **admin:users** scope.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="GET" label="/users/{id}">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/550e8400-e29b-41d4-a716-446655440000 \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    user_id = '550e8400-e29b-41d4-a716-446655440000'
+    response = requests.get(
+        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/{user_id}',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+        }
+    )
+
+    user = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const userId = '550e8400-e29b-41d4-a716-446655440000'
+    const response = await fetch(
+      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/${userId}`,
+      {
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+        },
+      }
+    )
+
+    const user = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone": "+263771234567",
+      "email": "tendai.moyo@example.com",
+      "firstName": "Tendai",
+      "lastName": "Moyo",
+      "kycTier": "BASIC",
+      "status": "ACTIVE",
+      "roles": ["user"],
+      "createdAt": "2026-05-15T08:30:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Look up user by phone {{ id: 'look-up-user-by-phone', tag: 'GET', label: '/users/phone/{phone}' }}
+
+<Row>
+  <Col>
+
+    Look up a user by their phone number. The phone number must be URL-encoded (e.g., `%2B263771234567` for `+263771234567`). This endpoint requires the **admin:users** scope.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="GET" label="/users/phone/{phone}">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/phone/%2B263771234567 \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+    from urllib.parse import quote
+
+    phone = '+263771234567'
+    encoded_phone = quote(phone, safe='')
+    response = requests.get(
+        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/phone/{encoded_phone}',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+        }
+    )
+
+    user = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const phone = '+263771234567'
+    const encodedPhone = encodeURIComponent(phone)
+    const response = await fetch(
+      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/phone/${encodedPhone}`,
+      {
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+        },
+      }
+    )
+
+    const user = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone": "+263771234567",
+      "email": "tendai.moyo@example.com",
+      "firstName": "Tendai",
+      "lastName": "Moyo",
+      "kycTier": "BASIC",
+      "status": "ACTIVE",
+      "roles": ["user"],
+      "createdAt": "2026-05-15T08:30:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Update user status {{ id: 'update-user-status', tag: 'PATCH', label: '/users/{id}/status' }}
+
+<Row>
+  <Col>
+
+    Update the account status of a user. This endpoint requires the **admin:users** scope. Use this to suspend, lock, or deactivate user accounts.
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="status" type="string">
+        The new account status. One of `ACTIVE`, `SUSPENDED`, `LOCKED`, or `DEACTIVATED`.
+      </Property>
+      <Property name="reason" type="string">
+        A description of why the status is being changed. This is stored for audit purposes.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="PATCH" label="/users/{id}/status">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X PATCH https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/550e8400-e29b-41d4-a716-446655440000/status \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "status": "SUSPENDED",
+        "reason": "Suspicious activity detected on account"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    user_id = '550e8400-e29b-41d4-a716-446655440000'
+    response = requests.patch(
+        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/{user_id}/status',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'status': 'SUSPENDED',
+            'reason': 'Suspicious activity detected on account',
+        }
+    )
+
+    updated_user = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const userId = '550e8400-e29b-41d4-a716-446655440000'
+    const response = await fetch(
+      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/${userId}/status`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'SUSPENDED',
+          reason: 'Suspicious activity detected on account',
+        }),
+      }
+    )
+
+    const updatedUser = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone": "+263771234567",
+      "email": "tendai.moyo@example.com",
+      "firstName": "Tendai",
+      "lastName": "Moyo",
+      "kycTier": "BASIC",
+      "status": "SUSPENDED",
+      "roles": ["user"],
+      "createdAt": "2026-05-15T08:30:00Z"
+    }
+    ```
+
+    <Note>
+      **Status transitions:**
+      - `ACTIVE` can be changed to `SUSPENDED`, `LOCKED`, or `DEACTIVATED`
+      - `SUSPENDED` can be changed back to `ACTIVE`
+      - `LOCKED` can be changed back to `ACTIVE`
+      - `DEACTIVATED` is a permanent state and cannot be reversed
+    </Note>
+
+  </Col>
+</Row>

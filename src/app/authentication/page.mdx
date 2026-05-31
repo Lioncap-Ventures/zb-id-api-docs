@@ -1,0 +1,379 @@
+export const metadata = {
+  title: 'Authentication',
+  description:
+    'Learn about user authentication flows, password management, OAuth2 client credentials, and token structure in the ZB ID API.',
+}
+
+export const sections = [
+  { title: 'User authentication', id: 'user-authentication' },
+  { title: 'Password management', id: 'password-management' },
+  { title: 'OAuth2 client credentials', id: 'oauth2-client-credentials' },
+  { title: 'Token structure', id: 'token-structure' },
+]
+
+# Authentication
+
+ZB ID supports two authentication models: user authentication with phone and password for end-user applications, and OAuth2 client credentials for service-to-service integrations. This guide covers both flows in detail, along with password management and the structure of issued tokens. {{ className: 'lead' }}
+
+---
+
+## User authentication {{ id: 'user-authentication' }}
+
+<Row>
+  <Col>
+
+    User authentication follows a standard flow: the client submits a phone number and password to the login endpoint, and the API returns a signed JWT access token and a refresh token.
+
+    ### Authentication flow
+
+    1. The client sends `POST /auth/login` with `phone` and `password`.
+    2. The API validates the credentials and returns an access token and a refresh token.
+    3. The client includes the access token in the `Authorization: Bearer <token>` header on every subsequent request.
+    4. When the access token expires, the client sends the refresh token to `POST /auth/token/refresh` to obtain a new token pair.
+
+    ### Account lockout
+
+    To protect against brute-force attacks, ZB ID enforces account lockout after repeated failed login attempts.
+
+    - **Threshold:** 5 consecutive failed attempts
+    - **Lockout duration:** 30 minutes
+    - **Reset:** The counter resets after a successful login or when the lockout period expires.
+
+    Failed attempts are tracked per phone number, regardless of the source IP address.
+
+    ### Session management
+
+    ZB ID limits the number of concurrent active sessions per user account.
+
+    - **Maximum concurrent sessions:** 3
+    - When a user logs in and already has 3 active sessions, the oldest session is automatically revoked.
+    - Users can view and revoke individual sessions through the `/sessions` endpoints.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/auth/login">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{
+        "phone": "+263771234567",
+        "password": "secureP@ss1"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+        headers={'Content-Type': 'application/json'},
+        json={
+            'phone': '+263771234567',
+            'password': 'secureP@ss1',
+        }
+    )
+
+    data = response.json()
+    access_token = data['accessToken']
+    refresh_token = data['refreshToken']
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: '+263771234567',
+          password: 'secureP@ss1',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    const accessToken = data.accessToken
+    const refreshToken = data.refreshToken
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "expiresIn": 86400,
+      "tokenType": "Bearer"
+    }
+    ```
+
+    <Note>
+      After 5 failed login attempts, the account is locked for 30 minutes. During lockout, all login requests for that phone number will return `403 Forbidden` regardless of whether the password is correct.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Password management {{ tag: 'POST', label: '/auth/password/change' }}
+
+<Row>
+  <Col>
+
+    Authenticated users can change their password by providing their current password alongside the new one. This endpoint requires a valid access token in the `Authorization` header.
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="currentPassword" type="string">
+        The user's current password. This is verified before the change is applied.
+      </Property>
+      <Property name="newPassword" type="string">
+        The new password. Must be at least 8 characters.
+      </Property>
+    </Properties>
+
+    After a successful password change, all existing refresh tokens for the user are invalidated. The user must log in again on other devices.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/auth/password/change">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/password/change \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "currentPassword": "secureP@ss1",
+        "newPassword": "newSecureP@ss2"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/password/change',
+        headers={
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'currentPassword': 'secureP@ss1',
+            'newPassword': 'newSecureP@ss2',
+        }
+    )
+
+    print(response.json())
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/password/change',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: 'secureP@ss1',
+          newPassword: 'newSecureP@ss2',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    console.log(data)
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "message": "Password changed successfully"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## OAuth2 client credentials {{ id: 'oauth2-client-credentials' }}
+
+<Row>
+  <Col>
+
+    For service-to-service communication where no user context is needed, ZB ID supports the OAuth2 client credentials grant as defined in [RFC 6749 Section 4.4](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4).
+
+    ### How it works
+
+    1. Register an OAuth client through the [OAuth Clients API](/oauth-clients) to receive a `clientId` and `clientSecret`.
+    2. Send a `POST` request to `/oauth/token` with `grant_type=client_credentials`, your `clientId`, and your `clientSecret`.
+    3. The API returns an access token scoped to the permissions assigned to your client.
+    4. Include the token in the `Authorization: Bearer <token>` header when calling other ZB ID endpoints.
+
+    ### When to use client credentials
+
+    - Backend services that need to verify tokens or look up user data
+    - Microservices communicating within the ZB platform
+    - Automated systems (cron jobs, data pipelines) that operate without a user session
+    - Third-party integrations that require API access
+
+    Client credentials tokens do not carry a user identity. They are associated with the client application itself and carry only the scopes granted to that client.
+
+    <div className="not-prose">
+      <Button href="/oauth-clients" variant="text" arrow="right">
+        <>Manage OAuth clients</>
+      </Button>
+    </div>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/oauth/token">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/token \
+      -H "Content-Type: application/json" \
+      -d '{
+        "grant_type": "client_credentials",
+        "clientId": "my-service-client-id",
+        "clientSecret": "my-service-client-secret"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/token',
+        headers={'Content-Type': 'application/json'},
+        json={
+            'grant_type': 'client_credentials',
+            'clientId': 'my-service-client-id',
+            'clientSecret': 'my-service-client-secret',
+        }
+    )
+
+    data = response.json()
+    access_token = data['access_token']
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/token',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grant_type: 'client_credentials',
+          clientId: 'my-service-client-id',
+          clientSecret: 'my-service-client-secret',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    const accessToken = data.access_token
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.client-token-payload.signature",
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "scope": "users:read tokens:introspect"
+    }
+    ```
+
+    <Note>
+      Client credentials tokens are short-lived (typically 1 hour). Your service should cache the token and request a new one before it expires. Do not request a new token on every API call.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Token structure {{ id: 'token-structure' }}
+
+<Row>
+  <Col>
+
+    ZB ID issues JSON Web Tokens (JWTs) for both user authentication and client credentials flows. The token payload differs depending on the authentication method used.
+
+    ### User token claims
+
+    Tokens issued through `POST /auth/login` contain the following claims:
+
+    | Claim | Type | Description |
+    |-------|------|-------------|
+    | `sub` | string | The user's unique identifier (UUID) |
+    | `iss` | string | Token issuer, always `zb-id` |
+    | `exp` | number | Expiration time as a Unix timestamp |
+    | `iat` | number | Issued-at time as a Unix timestamp |
+    | `jti` | string | Unique token identifier for revocation tracking |
+    | `phone` | string | The user's phone number |
+    | `roles` | array | Roles assigned to the user (e.g., `ROLE_USER`, `ROLE_ADMIN`) |
+    | `scopes` | array | Fine-grained permission scopes derived from the user's roles |
+    | `kyc_tier` | number | The user's KYC verification level (0 = unverified, 1 = basic, 2 = full) |
+
+    ### Client token claims
+
+    Tokens issued through `POST /oauth/token` with `grant_type=client_credentials` contain the following claims:
+
+    | Claim | Type | Description |
+    |-------|------|-------------|
+    | `sub` | string | The client application's unique identifier |
+    | `iss` | string | Token issuer, always `zb-id` |
+    | `exp` | number | Expiration time as a Unix timestamp |
+    | `iat` | number | Issued-at time as a Unix timestamp |
+    | `jti` | string | Unique token identifier |
+    | `token_type` | string | Always `client_credentials` for client tokens |
+    | `client_id` | string | The OAuth client ID |
+    | `scopes` | array | Permission scopes granted to the client (e.g., `users:read`, `tokens:introspect`) |
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'Decoded user token payload' }}
+    {
+      "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "iss": "zb-id",
+      "exp": 1717235200,
+      "iat": 1717148800,
+      "jti": "tok_9f8e7d6c5b4a3210",
+      "phone": "+263771234567",
+      "roles": ["ROLE_USER"],
+      "scopes": ["profile:read", "profile:write"],
+      "kyc_tier": 1
+    }
+    ```
+
+    ```json {{ title: 'Decoded client token payload' }}
+    {
+      "sub": "my-service-client-id",
+      "iss": "zb-id",
+      "exp": 1717152400,
+      "iat": 1717148800,
+      "jti": "tok_c1d2e3f4a5b60000",
+      "token_type": "client_credentials",
+      "client_id": "my-service-client-id",
+      "scopes": ["users:read", "tokens:introspect"]
+    }
+    ```
+
+    <Note>
+      Never decode and trust token claims on the client side for authorization decisions. Always validate tokens server-side using the `/tokens/introspect` endpoint or by verifying the JWT signature with the shared secret.
+    </Note>
+
+  </Col>
+</Row>

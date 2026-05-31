@@ -1,0 +1,295 @@
+export const metadata = {
+  title: 'Errors',
+  description:
+    'Learn about error handling in the ZB ID API, including error codes, status codes, and validation error details.',
+}
+
+export const sections = [
+  { title: 'Error response format', id: 'error-response-format' },
+  { title: 'Error codes', id: 'error-codes' },
+  { title: 'Status codes', id: 'status-codes' },
+  { title: 'Validation errors', id: 'validation-errors' },
+]
+
+# Errors
+
+The ZB ID API uses conventional HTTP status codes and a consistent error response format to indicate success or failure. Every error response includes machine-readable codes and human-readable messages to help you diagnose issues quickly. {{ className: 'lead' }}
+
+---
+
+## Error response format {{ id: 'error-response-format' }}
+
+<Row>
+  <Col>
+
+    All ZB ID API errors follow a consistent JSON structure. Every error response includes:
+
+    - `error` - A machine-readable error code (e.g., `UNAUTHORIZED`, `BAD_REQUEST`)
+    - `message` - A human-readable description of what went wrong
+    - `status` - The HTTP status code as an integer
+    - `timestamp` - An ISO 8601 timestamp indicating when the error occurred
+
+    This consistent format makes it straightforward to handle errors programmatically across all endpoints.
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'Error response envelope' }}
+    {
+      "error": "BAD_REQUEST",
+      "message": "Phone number is required and must be in E.164 format",
+      "status": 400,
+      "timestamp": "2026-05-31T10:15:30.123Z"
+    }
+    ```
+
+    ```json {{ title: 'Authentication error' }}
+    {
+      "error": "UNAUTHORIZED",
+      "message": "Invalid or expired access token",
+      "status": 401,
+      "timestamp": "2026-05-31T10:16:45.456Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Error codes {{ id: 'error-codes' }}
+
+<Row>
+  <Col>
+
+    The `error` field in each response maps to one of the following machine-readable error codes. Use these codes to implement specific handling logic in your application.
+
+    <Properties>
+      <Property name="UNAUTHORIZED" type="401">
+        The request lacks valid authentication credentials. Either no token was provided or the token has expired.
+      </Property>
+      <Property name="INVALID_CREDENTIALS" type="401">
+        The phone number or OTP provided during login is incorrect.
+      </Property>
+      <Property name="FORBIDDEN" type="403">
+        The authenticated user does not have permission to perform the requested action.
+      </Property>
+      <Property name="ACCOUNT_LOCKED" type="403">
+        The user account has been locked due to too many failed login attempts or administrative action.
+      </Property>
+      <Property name="BAD_REQUEST" type="400">
+        The request body is malformed, missing required fields, or contains invalid values.
+      </Property>
+      <Property name="CONFLICT" type="409">
+        The request conflicts with the current state of the resource (e.g., attempting to register a phone number that already exists).
+      </Property>
+      <Property name="TOO_MANY_REQUESTS" type="429">
+        Rate limit exceeded. Back off and retry after the period specified in the response.
+      </Property>
+      <Property name="INTERNAL_ERROR" type="500">
+        An unexpected error occurred on the server. If this persists, contact support.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **Handling tip:** Check the `error` code first for programmatic branching, then use the `message` field for logging or displaying information to users.
+    </Note>
+
+    ```json {{ title: 'Account locked example' }}
+    {
+      "error": "ACCOUNT_LOCKED",
+      "message": "Account locked due to repeated failed login attempts. Try again later.",
+      "status": 403,
+      "timestamp": "2026-05-31T10:20:00.789Z"
+    }
+    ```
+
+    ```json {{ title: 'Conflict example' }}
+    {
+      "error": "CONFLICT",
+      "message": "A user with this phone number already exists",
+      "status": 409,
+      "timestamp": "2026-05-31T10:21:00.321Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Status codes {{ id: 'status-codes' }}
+
+<Row>
+  <Col>
+
+    The ZB ID API uses standard HTTP status codes to indicate the outcome of requests.
+
+    ### Success codes
+
+    <Properties>
+      <Property name="200 OK">
+        Request succeeded. The response body contains the requested data or confirmation of the action.
+      </Property>
+      <Property name="201 Created">
+        A new resource was successfully created (e.g., a new user account after registration).
+      </Property>
+    </Properties>
+
+    ### Client error codes
+
+    <Properties>
+      <Property name="400 Bad Request">
+        The request body is invalid, missing required fields, or contains values that fail validation.
+      </Property>
+      <Property name="401 Unauthorized">
+        Authentication failed. The access token is missing, malformed, or expired, or the login credentials are incorrect.
+      </Property>
+      <Property name="403 Forbidden">
+        The authenticated user does not have the required permissions, or the account is locked.
+      </Property>
+      <Property name="404 Not Found">
+        The requested user, client, or resource does not exist.
+      </Property>
+      <Property name="409 Conflict">
+        The request conflicts with existing data (e.g., duplicate phone number during registration).
+      </Property>
+      <Property name="429 Too Many Requests">
+        Rate limit exceeded. See the [Rate Limiting](/rate-limiting) page for details on limits and retry strategies.
+      </Property>
+    </Properties>
+
+    ### Server error codes
+
+    <Properties>
+      <Property name="500 Internal Server Error">
+        An unexpected server-side error occurred. If this persists, contact the ZB ID support team.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **Best practice:** Always check the HTTP status code first, then parse the JSON error body for the `error` code and `message` to determine the specific failure reason.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Validation errors {{ id: 'validation-errors' }}
+
+<Row>
+  <Col>
+
+    When a `400 Bad Request` error occurs due to invalid input, the response includes field-level details describing exactly which fields failed validation and why. This makes it easy to display specific feedback in your UI or logs.
+
+    ### Common validation failures
+
+    - **Missing required fields** - A field that must be present was omitted from the request body
+    - **Invalid phone format** - Phone numbers must follow the E.164 format (e.g., `+263771234567`)
+    - **Invalid field length** - A string value is too short or too long
+    - **Invalid enum value** - A field value does not match one of the allowed options
+
+    ### Error handling strategy
+
+    1. Check the HTTP status code (400 indicates a validation error)
+    2. Parse the `message` field for a summary of the issue
+    3. Display targeted feedback to the user based on the error details
+    4. Fix the invalid fields and retry the request
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'Validation error example' }}
+    {
+      "error": "BAD_REQUEST",
+      "message": "Validation failed: phone must be a valid E.164 phone number",
+      "status": 400,
+      "timestamp": "2026-05-31T10:25:00.555Z"
+    }
+    ```
+
+    ### Example error handling
+
+    <CodeGroup title="Error handling">
+
+    ```bash {{ title: 'cURL' }}
+    curl -s -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{
+        "phone": "invalid-phone"
+      }' | python3 -m json.tool
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+        json={'phone': '+263771234567', 'otp': '123456'}
+    )
+
+    if response.status_code == 400:
+        error_data = response.json()
+        print(f"Validation error: {error_data['message']}")
+    elif response.status_code == 401:
+        print('Invalid credentials')
+    elif response.status_code == 403:
+        error_data = response.json()
+        if error_data.get('error') == 'ACCOUNT_LOCKED':
+            print('Account is locked. Try again later.')
+        else:
+            print('Access forbidden')
+    elif response.status_code == 429:
+        print('Rate limited. Please wait before retrying.')
+    elif response.status_code == 200:
+        data = response.json()
+        print('Login successful')
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: '+263771234567',
+          otp: '123456',
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json()
+
+      switch (error.error) {
+        case 'BAD_REQUEST':
+          console.error('Validation error:', error.message)
+          break
+        case 'UNAUTHORIZED':
+        case 'INVALID_CREDENTIALS':
+          console.error('Authentication failed:', error.message)
+          break
+        case 'ACCOUNT_LOCKED':
+          console.error('Account locked:', error.message)
+          break
+        case 'TOO_MANY_REQUESTS':
+          console.error('Rate limited. Retry later.')
+          break
+        default:
+          console.error('Error:', error.message)
+      }
+    }
+    ```
+
+    </CodeGroup>
+
+  </Col>
+</Row>

@@ -1,0 +1,364 @@
+export const metadata = {
+  title: 'Token Introspection',
+  description:
+    'Validate and inspect OAuth tokens using the ZB ID introspection endpoint to verify user identity, scopes, and token status.',
+}
+
+export const sections = [
+  { title: 'Introspect a token', id: 'introspect-a-token' },
+  { title: 'Usage patterns', id: 'usage-patterns' },
+  { title: 'User vs client tokens', id: 'user-vs-client-tokens' },
+]
+
+# Token Introspection
+
+The token introspection endpoint allows ZB services to validate access tokens and retrieve the associated metadata, including user identity, scopes, roles, and KYC tier. This is the recommended approach when services cannot verify JWTs locally or need real-time token status. {{ className: 'lead' }}
+
+---
+
+## Introspect a token {{ id: 'introspect-a-token', tag: 'POST', label: '/oauth/introspect' }}
+
+<Row>
+  <Col>
+
+    Submit a token for validation. If the token is valid and has not expired, the response includes the full set of claims associated with that token. If the token is invalid, expired, or revoked, the response returns `{ "active": false }` with no additional fields.
+
+    ### Request body
+
+    <Properties>
+      <Property name="token" type="string">
+        The access token to introspect. This can be either a user token or a client credentials token.
+      </Property>
+    </Properties>
+
+    ### Response fields (active token)
+
+    <Properties>
+      <Property name="active" type="boolean">
+        `true` if the token is valid and has not expired.
+      </Property>
+      <Property name="sub" type="string">
+        The subject identifier. For user tokens, this is the user's UUID. For client tokens, this is the client ID.
+      </Property>
+      <Property name="iss" type="string">
+        The issuer URL of the token (the ZB ID base URL).
+      </Property>
+      <Property name="exp" type="integer">
+        Token expiration time as a Unix timestamp.
+      </Property>
+      <Property name="iat" type="integer">
+        Token issued-at time as a Unix timestamp.
+      </Property>
+      <Property name="scopes" type="array">
+        List of permission scopes granted to this token.
+      </Property>
+      <Property name="roles" type="array">
+        List of roles assigned to the token subject. Empty for client tokens.
+      </Property>
+      <Property name="kycTier" type="string">
+        The KYC verification tier of the user (e.g., `none`, `basic`, `enhanced`, `full`). Only present on user tokens.
+      </Property>
+      <Property name="tokenType" type="string">
+        Either `user` or `client`, indicating how the token was issued.
+      </Property>
+      <Property name="clientId" type="string">
+        The OAuth client ID that requested the token. Present on both user and client tokens.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/oauth/introspect">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/introspect \
+      -H "Content-Type: application/json" \
+      -d '{
+        "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/introspect',
+        headers={'Content-Type': 'application/json'},
+        json={
+            'token': 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
+        }
+    )
+
+    data = response.json()
+
+    if data['active']:
+        print(f"User: {data['sub']}")
+        print(f"Scopes: {data['scopes']}")
+        print(f"KYC Tier: {data.get('kycTier')}")
+    else:
+        print('Token is invalid or expired')
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/introspect',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
+        }),
+      }
+    )
+
+    const data = await response.json()
+
+    if (data.active) {
+      console.log(`User: ${data.sub}`)
+      console.log(`Scopes: ${data.scopes}`)
+    } else {
+      console.log('Token is invalid or expired')
+    }
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response (active token)' }}
+    {
+      "active": true,
+      "sub": "550e8400-e29b-41d4-a716-446655440000",
+      "iss": "https://unified-zb-id-ynddvnxogq-lz.a.run.app",
+      "exp": 1717200000,
+      "iat": 1717113600,
+      "scopes": [
+        "banking:read",
+        "banking:write",
+        "profile:read",
+        "profile:write"
+      ],
+      "roles": ["merchant"],
+      "kycTier": "enhanced",
+      "tokenType": "user",
+      "clientId": "zb-mobile-app"
+    }
+    ```
+
+    ```json {{ title: 'Response (invalid/expired token)' }}
+    {
+      "active": false
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Usage patterns {{ id: 'usage-patterns' }}
+
+<Row>
+  <Col>
+
+    Token introspection is the primary mechanism for ZB services to validate tokens they receive from clients. There are two common patterns depending on your architecture.
+
+    ### Pattern 1: API gateway validation
+
+    Place introspection at the API gateway layer so that individual microservices never need to validate tokens themselves.
+
+    1. Client sends a request with `Authorization: Bearer <token>` to the gateway.
+    2. The gateway calls `/oauth/introspect` to validate the token.
+    3. If `active` is `true`, the gateway forwards the request to the downstream service, attaching the resolved scopes and user ID as headers.
+    4. If `active` is `false`, the gateway returns `401 Unauthorized` immediately.
+
+    ### Pattern 2: Per-service validation
+
+    Each microservice validates tokens directly. This is simpler to set up but requires every service to have network access to ZB ID.
+
+    1. The service receives a request with `Authorization: Bearer <token>`.
+    2. The service calls `/oauth/introspect` to validate the token.
+    3. The service checks that the required scopes are present in the response.
+    4. If validation passes, the service processes the request.
+
+    ### Caching introspection results
+
+    To reduce latency and load on ZB ID, services may cache introspection results. Use the `exp` field to set the cache TTL, and never cache results longer than the token's remaining lifetime. Invalidate the cache immediately if you receive a `401` from any downstream call.
+
+  </Col>
+  <Col sticky>
+
+    ```python {{ title: 'Gateway middleware (Python)' }}
+    import requests
+    from functools import lru_cache
+
+    ZB_ID_URL = 'https://unified-zb-id-ynddvnxogq-lz.a.run.app'
+
+    def validate_token(token: str) -> dict | None:
+        """Validate a token via introspection."""
+        response = requests.post(
+            f'{ZB_ID_URL}/oauth/introspect',
+            json={'token': token}
+        )
+        data = response.json()
+        if data.get('active'):
+            return data
+        return None
+
+    def require_scope(scope: str):
+        """Decorator to enforce a required scope."""
+        def decorator(func):
+            def wrapper(request, *args, **kwargs):
+                token = request.headers.get('Authorization', '').replace('Bearer ', '')
+                claims = validate_token(token)
+                if not claims:
+                    return Response(status=401)
+                if scope not in claims.get('scopes', []):
+                    return Response(status=403)
+                request.user_id = claims['sub']
+                request.scopes = claims['scopes']
+                return func(request, *args, **kwargs)
+            return wrapper
+        return decorator
+
+    @require_scope('banking:read')
+    def get_account_balance(request, account_id):
+        # Token is valid and has banking:read scope
+        ...
+    ```
+
+    ```javascript {{ title: 'Express middleware (Node.js)' }}
+    const ZB_ID_URL =
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app'
+
+    async function validateToken(token) {
+      const res = await fetch(
+        `${ZB_ID_URL}/oauth/introspect`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        }
+      )
+      const data = await res.json()
+      return data.active ? data : null
+    }
+
+    function requireScope(scope) {
+      return async (req, res, next) => {
+        const token = req.headers.authorization
+          ?.replace('Bearer ', '')
+        const claims = await validateToken(token)
+
+        if (!claims) {
+          return res.status(401).json({
+            result: 'failed',
+            message: 'Invalid or expired token',
+          })
+        }
+
+        if (!claims.scopes.includes(scope)) {
+          return res.status(403).json({
+            result: 'failed',
+            message: `Missing required scope: ${scope}`,
+          })
+        }
+
+        req.userId = claims.sub
+        req.scopes = claims.scopes
+        next()
+      }
+    }
+
+    // Usage
+    app.get(
+      '/accounts/:id/balance',
+      requireScope('banking:read'),
+      (req, res) => {
+        // Token is valid and has banking:read
+      }
+    )
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## User vs client tokens {{ id: 'user-vs-client-tokens' }}
+
+<Row>
+  <Col>
+
+    ZB ID issues two types of tokens, and the `tokenType` field in the introspection response tells you which one you are looking at.
+
+    ### User tokens (`tokenType: "user"`)
+
+    Issued when a human user authenticates through the login flow. These tokens carry:
+
+    - **sub**: The user's UUID
+    - **roles**: The user's assigned roles (e.g., `["customer"]`, `["admin", "staff"]`)
+    - **scopes**: Permissions derived from the user's roles
+    - **kycTier**: The user's KYC verification level
+
+    User tokens represent a specific person and should be used to enforce user-level access controls.
+
+    ### Client tokens (`tokenType: "client"`)
+
+    Issued via the OAuth client credentials grant. These tokens are used for service-to-service communication where no user context is needed. They carry:
+
+    - **sub**: The client ID (not a user UUID)
+    - **roles**: Always an empty array
+    - **scopes**: The scopes granted to the OAuth client application
+    - **kycTier**: Not present
+
+    Client tokens represent an application, not a person. They are appropriate for background jobs, data synchronization, and inter-service API calls.
+
+    ### Distinguishing tokens in your service
+
+    Always check `tokenType` before making authorization decisions. For example, an endpoint that returns user-specific data should reject client tokens, while a batch processing endpoint might accept only client tokens.
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'User token introspection' }}
+    {
+      "active": true,
+      "sub": "550e8400-e29b-41d4-a716-446655440000",
+      "tokenType": "user",
+      "roles": ["merchant"],
+      "scopes": [
+        "banking:read",
+        "banking:write",
+        "profile:read",
+        "profile:write"
+      ],
+      "kycTier": "enhanced",
+      "clientId": "zb-mobile-app",
+      "exp": 1717200000,
+      "iat": 1717113600
+    }
+    ```
+
+    ```json {{ title: 'Client token introspection' }}
+    {
+      "active": true,
+      "sub": "zb-lending-service",
+      "tokenType": "client",
+      "roles": [],
+      "scopes": [
+        "banking:read",
+        "lending:read",
+        "lending:write"
+      ],
+      "clientId": "zb-lending-service",
+      "exp": 1717200000,
+      "iat": 1717196400
+    }
+    ```
+
+    <Note>
+      **Security tip:** Never assume a token is a user token just because it has scopes. Always check `tokenType` explicitly. A client token with `profile:read` should not be used to fetch a specific user's profile data without additional authorization logic.
+    </Note>
+
+  </Col>
+</Row>

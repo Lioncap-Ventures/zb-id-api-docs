@@ -1,0 +1,357 @@
+export const metadata = {
+  title: 'Quickstart',
+  description:
+    'Register a user, log in, and make your first authenticated API call to ZB ID in minutes.',
+}
+
+export const sections = [
+  { title: 'Register a user', id: 'register-a-user' },
+  { title: 'Log in', id: 'log-in' },
+  { title: 'Use your token', id: 'use-your-token' },
+  { title: 'Refresh your token', id: 'refresh-your-token' },
+]
+
+# Quickstart
+
+This guide walks you through the four steps needed to start using the ZB ID API: registering a user, logging in to receive tokens, making an authenticated request, and refreshing your access token when it expires. {{ className: 'lead' }}
+
+---
+
+## Register a user {{ tag: 'POST', label: '/auth/register' }}
+
+<Row>
+  <Col>
+
+    Create a new user account by providing a phone number, password, first name, last name, and email address. The phone number must be in E.164 format (for example, `+263771234567`).
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="phone" type="string">
+        The user's phone number in E.164 format. This will be used as the primary identifier for login.
+      </Property>
+      <Property name="password" type="string">
+        A strong password for the account. Must be at least 8 characters.
+      </Property>
+      <Property name="firstName" type="string">
+        The user's first name.
+      </Property>
+      <Property name="lastName" type="string">
+        The user's last name.
+      </Property>
+      <Property name="email" type="string">
+        The user's email address.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/auth/register">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/register \
+      -H "Content-Type: application/json" \
+      -d '{
+        "phone": "+263771234567",
+        "password": "secureP@ss1",
+        "firstName": "Tatenda",
+        "lastName": "Moyo",
+        "email": "tatenda.moyo@example.com"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/register',
+        headers={'Content-Type': 'application/json'},
+        json={
+            'phone': '+263771234567',
+            'password': 'secureP@ss1',
+            'firstName': 'Tatenda',
+            'lastName': 'Moyo',
+            'email': 'tatenda.moyo@example.com',
+        }
+    )
+
+    data = response.json()
+    print(data)
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/register',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: '+263771234567',
+          password: 'secureP@ss1',
+          firstName: 'Tatenda',
+          lastName: 'Moyo',
+          email: 'tatenda.moyo@example.com',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    console.log(data)
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "phone": "+263771234567",
+      "firstName": "Tatenda",
+      "lastName": "Moyo",
+      "email": "tatenda.moyo@example.com",
+      "roles": ["ROLE_USER"],
+      "kycTier": 0,
+      "createdAt": "2026-05-31T10:00:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Log in {{ tag: 'POST', label: '/auth/login' }}
+
+<Row>
+  <Col>
+
+    Authenticate with the phone number and password you registered. On success, the API returns an access token and a refresh token. Store both tokens securely; you will need the access token for every authenticated request and the refresh token to obtain new access tokens.
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="phone" type="string">
+        The phone number used during registration.
+      </Property>
+      <Property name="password" type="string">
+        The account password.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/auth/login">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{
+        "phone": "+263771234567",
+        "password": "secureP@ss1"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+        headers={'Content-Type': 'application/json'},
+        json={
+            'phone': '+263771234567',
+            'password': 'secureP@ss1',
+        }
+    )
+
+    data = response.json()
+    access_token = data['accessToken']
+    refresh_token = data['refreshToken']
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: '+263771234567',
+          password: 'secureP@ss1',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    const accessToken = data.accessToken
+    const refreshToken = data.refreshToken
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNC1lNWY2LTc4OTAtYWJjZC1lZjEyMzQ1Njc4OTAiLCJwaG9uZSI6IisyNjM3NzEyMzQ1NjciLCJyb2xlcyI6WyJST0xFX1VTRVIiXSwiaWF0IjoxNzE3MTQ4ODAwLCJleHAiOjE3MTcyMzUyMDB9.signature",
+      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNC1lNWY2LTc4OTAtYWJjZC1lZjEyMzQ1Njc4OTAiLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTcxNzE0ODgwMCwiZXhwIjoxNzE5NzQwODAwfQ.signature",
+      "expiresIn": 86400,
+      "tokenType": "Bearer"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Use your token {{ tag: 'GET', label: '/users/me' }}
+
+<Row>
+  <Col>
+
+    With your access token in hand, you can call any authenticated endpoint. Include the token in the `Authorization` header as a Bearer token. The `/users/me` endpoint returns the profile of the currently authenticated user, which makes it a good first test.
+
+    ### Required headers
+
+    <Properties>
+      <Property name="Authorization" type="string">
+        Must be `Bearer <accessToken>` where `<accessToken>` is the token returned from the login endpoint.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="GET" label="/users/me">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.get(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+        headers={
+            'Authorization': f'Bearer {access_token}',
+        }
+    )
+
+    user = response.json()
+    print(user)
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    )
+
+    const user = await response.json()
+    console.log(user)
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "phone": "+263771234567",
+      "firstName": "Tatenda",
+      "lastName": "Moyo",
+      "email": "tatenda.moyo@example.com",
+      "roles": ["ROLE_USER"],
+      "kycTier": 0,
+      "createdAt": "2026-05-31T10:00:00Z",
+      "lastLoginAt": "2026-05-31T10:05:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Refresh your token {{ tag: 'POST', label: '/auth/token/refresh' }}
+
+<Row>
+  <Col>
+
+    Access tokens expire after a set period. When that happens, use the refresh token to obtain a new access token without requiring the user to log in again.
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="refreshToken" type="string">
+        The refresh token received during login or from a previous refresh call.
+      </Property>
+    </Properties>
+
+    <Note>
+      ZB ID uses **refresh token rotation**. Each time you refresh, the API issues both a new access token and a new refresh token. The old refresh token is immediately invalidated. If a previously used refresh token is submitted again, all tokens for that user session are revoked as a security measure (replay detection). Always store and use the latest refresh token.
+    </Note>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/auth/token/refresh">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/token/refresh \
+      -H "Content-Type: application/json" \
+      -d '{
+        "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/token/refresh',
+        headers={'Content-Type': 'application/json'},
+        json={
+            'refreshToken': 'eyJhbGciOiJIUzI1NiIs...',
+        }
+    )
+
+    data = response.json()
+    new_access_token = data['accessToken']
+    new_refresh_token = data['refreshToken']
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/token/refresh',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          refreshToken: 'eyJhbGciOiJIUzI1NiIs...',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    const newAccessToken = data.accessToken
+    const newRefreshToken = data.refreshToken
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new-access-token-payload.signature",
+      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new-refresh-token-payload.signature",
+      "expiresIn": 86400,
+      "tokenType": "Bearer"
+    }
+    ```
+
+  </Col>
+</Row>

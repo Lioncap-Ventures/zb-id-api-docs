@@ -1,0 +1,463 @@
+export const metadata = {
+  title: 'Roles & Permissions',
+  description:
+    'Understand role-based access control in ZB ID, including default roles, permissions, and how to manage user role assignments.',
+}
+
+export const sections = [
+  { title: 'RBAC overview', id: 'rbac-overview' },
+  { title: 'Default roles', id: 'default-roles' },
+  { title: 'Permissions', id: 'permissions' },
+  { title: 'List user roles', id: 'list-user-roles' },
+  { title: 'Assign a role', id: 'assign-a-role' },
+  { title: 'Remove a role', id: 'remove-a-role' },
+]
+
+# Roles & Permissions
+
+ZB ID uses role-based access control (RBAC) to govern what each user can do across the platform. Users are assigned roles, roles contain permissions, and those permissions are embedded as scopes in JWT tokens issued during authentication. {{ className: 'lead' }}
+
+---
+
+## RBAC overview {{ id: 'rbac-overview' }}
+
+<Row>
+  <Col>
+
+    ZB ID implements a layered authorization model built on three concepts:
+
+    - **Users** are the individuals or service accounts that interact with the platform.
+    - **Roles** are named collections of permissions assigned to users. A user can hold multiple roles simultaneously.
+    - **Permissions** are fine-grained access controls that map directly to JWT scopes. When a token is issued, the user's permissions are included as scopes in the token payload.
+
+    This design allows downstream ZB services (banking, lending, insurance, wealth management) to make authorization decisions locally by inspecting the scopes on the JWT, without calling back to ZB ID on every request.
+
+    ### How it works
+
+    1. An administrator assigns one or more roles to a user.
+    2. When the user authenticates, ZB ID resolves all permissions from the assigned roles.
+    3. Those permissions are embedded as `scopes` in the issued JWT.
+    4. Downstream services check `scopes` to authorize or deny access.
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **Scope-based authorization:** Every permission listed below becomes a JWT scope. Services can verify access by checking whether the required scope is present in the token, either via local JWT validation or by calling the `/oauth/introspect` endpoint.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Default roles {{ id: 'default-roles' }}
+
+<Row>
+  <Col>
+
+    ZB ID ships with five default roles. Each role comes pre-configured with a set of permissions appropriate for its intended use case.
+
+    | Role | Description |
+    |------|-------------|
+    | **customer** | End users of ZB digital products. Granted read access to their own profile, banking, lending, insurance, and wealth data. |
+    | **merchant** | Business operators who accept payments or provide services through ZB platforms. Includes customer permissions plus write access to banking and profile resources. |
+    | **staff** | Internal ZB employees who manage day-to-day operations. Includes broad read/write access across all product lines. |
+    | **admin** | System administrators with full access, including user management, role assignment, KYC administration, audit logs, and platform configuration. |
+    | **auditor** | Compliance and audit personnel with read-only access across all product lines plus access to audit logs. Cannot modify data or manage users. |
+
+    Custom roles can be created through the admin interface or the API to support more specialized access patterns.
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      **Role inheritance:** Roles do not inherit from one another. Each role defines its own independent set of permissions. If you need a role that combines permissions from multiple roles, create a custom role or assign multiple roles to the user.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Permissions {{ id: 'permissions' }}
+
+<Row>
+  <Col>
+
+    Permissions follow a `resource:action` naming convention. Each permission maps one-to-one with a JWT scope.
+
+    ### Product permissions
+
+    <Properties>
+      <Property name="banking:read" type="scope">
+        Read access to banking accounts, balances, and transaction history.
+      </Property>
+      <Property name="banking:write" type="scope">
+        Create or modify banking resources such as accounts and transfers.
+      </Property>
+      <Property name="lending:read" type="scope">
+        Read access to loan applications, balances, and repayment schedules.
+      </Property>
+      <Property name="lending:write" type="scope">
+        Create or modify loan applications and repayment actions.
+      </Property>
+      <Property name="insurance:read" type="scope">
+        Read access to insurance policies, claims, and coverage details.
+      </Property>
+      <Property name="insurance:write" type="scope">
+        Create or modify insurance policies and submit claims.
+      </Property>
+      <Property name="wealth:read" type="scope">
+        Read access to investment portfolios, fund balances, and performance data.
+      </Property>
+      <Property name="wealth:write" type="scope">
+        Create or modify investment positions and portfolio allocations.
+      </Property>
+      <Property name="profile:read" type="scope">
+        Read access to user profile information, contact details, and preferences.
+      </Property>
+      <Property name="profile:write" type="scope">
+        Update user profile information and preferences.
+      </Property>
+    </Properties>
+
+    ### Administrative permissions
+
+    <Properties>
+      <Property name="admin:users" type="scope">
+        Manage user accounts: create, update, suspend, or delete users.
+      </Property>
+      <Property name="admin:roles" type="scope">
+        Manage role assignments: list, assign, and remove roles from users.
+      </Property>
+      <Property name="admin:audit" type="scope">
+        Access audit logs and compliance reports.
+      </Property>
+      <Property name="admin:kyc" type="scope">
+        Manage KYC verification workflows: review, approve, or reject submissions.
+      </Property>
+      <Property name="admin:config" type="scope">
+        Modify platform-level configuration settings.
+      </Property>
+      <Property name="admin:clients" type="scope">
+        Manage OAuth client applications: register, update, or revoke clients.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'Example JWT scopes payload' }}
+    {
+      "sub": "550e8400-e29b-41d4-a716-446655440000",
+      "iss": "https://unified-zb-id-ynddvnxogq-lz.a.run.app",
+      "scopes": [
+        "banking:read",
+        "banking:write",
+        "profile:read",
+        "profile:write"
+      ],
+      "roles": ["merchant"],
+      "exp": 1717200000,
+      "iat": 1717113600
+    }
+    ```
+
+    <Note>
+      **Checking permissions in your service:** Parse the JWT and verify that the required scope is present in the `scopes` array before allowing the operation. For example, a banking transfer endpoint should require `banking:write`.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## List user roles {{ id: 'list-user-roles', tag: 'GET', label: '/users/{userId}/roles' }}
+
+<Row>
+  <Col>
+
+    Retrieve all roles currently assigned to a specific user. This endpoint is useful for building admin dashboards and for auditing user access.
+
+    ### Required headers
+
+    <Properties>
+      <Property name="Authorization" type="string">
+        Bearer token with the `admin:roles` scope.
+      </Property>
+    </Properties>
+
+    ### Path parameters
+
+    <Properties>
+      <Property name="userId" type="string">
+        The unique identifier (UUID) of the user whose roles you want to list.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="GET" label="/users/{userId}/roles">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/550e8400-e29b-41d4-a716-446655440000/roles \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    user_id = '550e8400-e29b-41d4-a716-446655440000'
+
+    response = requests.get(
+        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/{user_id}/roles',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
+        }
+    )
+
+    roles = response.json()['roles']
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const userId = '550e8400-e29b-41d4-a716-446655440000'
+
+    const response = await fetch(
+      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/${userId}/roles`,
+      {
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
+        },
+      }
+    )
+
+    const data = await response.json()
+    const roles = data.roles
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "result": "success",
+      "roles": [
+        {
+          "roleName": "merchant",
+          "subsidiaryScope": "zb-bank",
+          "assignedAt": "2026-03-15T10:30:00Z",
+          "assignedBy": "admin@zb.co.zw"
+        },
+        {
+          "roleName": "customer",
+          "subsidiaryScope": null,
+          "assignedAt": "2026-01-10T08:00:00Z",
+          "assignedBy": "system"
+        }
+      ]
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Assign a role {{ id: 'assign-a-role', tag: 'POST', label: '/users/{userId}/roles' }}
+
+<Row>
+  <Col>
+
+    Assign a role to a user. If the user already has the specified role, the request will return a conflict error.
+
+    ### Required headers
+
+    <Properties>
+      <Property name="Authorization" type="string">
+        Bearer token with the `admin:roles` scope.
+      </Property>
+      <Property name="Content-Type" type="string">
+        Must be `application/json`.
+      </Property>
+    </Properties>
+
+    ### Path parameters
+
+    <Properties>
+      <Property name="userId" type="string">
+        The unique identifier (UUID) of the user to assign the role to.
+      </Property>
+    </Properties>
+
+    ### Request body
+
+    <Properties>
+      <Property name="roleName" type="string">
+        The name of the role to assign (e.g., `customer`, `merchant`, `staff`, `admin`, `auditor`, or a custom role name).
+      </Property>
+      <Property name="subsidiaryScope" type="string">
+        Optional. Limits the role to a specific ZB subsidiary (e.g., `zb-bank`, `zb-life`, `zb-reinsurance`). When omitted, the role applies across all subsidiaries.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/users/{userId}/roles">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/550e8400-e29b-41d4-a716-446655440000/roles \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "roleName": "merchant",
+        "subsidiaryScope": "zb-bank"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    user_id = '550e8400-e29b-41d4-a716-446655440000'
+
+    response = requests.post(
+        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/{user_id}/roles',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'roleName': 'merchant',
+            'subsidiaryScope': 'zb-bank'
+        }
+    )
+
+    result = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const userId = '550e8400-e29b-41d4-a716-446655440000'
+
+    const response = await fetch(
+      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/${userId}/roles`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roleName: 'merchant',
+          subsidiaryScope: 'zb-bank',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "result": "success",
+      "message": "Role 'merchant' assigned to user successfully",
+      "role": {
+        "roleName": "merchant",
+        "subsidiaryScope": "zb-bank",
+        "assignedAt": "2026-05-31T14:20:00Z",
+        "assignedBy": "admin@zb.co.zw"
+      }
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Remove a role {{ id: 'remove-a-role', tag: 'DELETE', label: '/users/{userId}/roles/{roleName}' }}
+
+<Row>
+  <Col>
+
+    Remove a role from a user. The user's active JWT tokens will continue to carry the old scopes until they expire or are refreshed. For immediate revocation, you should also invalidate the user's sessions.
+
+    ### Required headers
+
+    <Properties>
+      <Property name="Authorization" type="string">
+        Bearer token with the `admin:roles` scope.
+      </Property>
+    </Properties>
+
+    ### Path parameters
+
+    <Properties>
+      <Property name="userId" type="string">
+        The unique identifier (UUID) of the user.
+      </Property>
+      <Property name="roleName" type="string">
+        The name of the role to remove.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="DELETE" label="/users/{userId}/roles/{roleName}">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X DELETE https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/550e8400-e29b-41d4-a716-446655440000/roles/merchant \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    user_id = '550e8400-e29b-41d4-a716-446655440000'
+    role_name = 'merchant'
+
+    response = requests.delete(
+        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/{user_id}/roles/{role_name}',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
+        }
+    )
+
+    result = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const userId = '550e8400-e29b-41d4-a716-446655440000'
+    const roleName = 'merchant'
+
+    const response = await fetch(
+      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/${userId}/roles/${roleName}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
+        },
+      }
+    )
+
+    const data = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "result": "success",
+      "message": "Role 'merchant' removed from user"
+    }
+    ```
+
+    <Note>
+      **Important:** Removing a role does not immediately invalidate existing JWT tokens. The user will retain the old scopes until their token expires or they re-authenticate. To enforce immediate access revocation, invalidate the user's active sessions after removing the role.
+    </Note>
+
+  </Col>
+</Row>
