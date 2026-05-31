@@ -9,9 +9,6 @@
     "lint": "next lint"
   },
   "browserslist": "defaults, not ie <= 11",
-  "pnpm": {
-    "onlyBuiltDependencies": ["@tailwindcss/oxide", "sharp", "unrs-resolver"]
-  },
   "dependencies": {
     "@algolia/autocomplete-core": "^1.19.2",
     "@headlessui/react": "^2.2.6",
