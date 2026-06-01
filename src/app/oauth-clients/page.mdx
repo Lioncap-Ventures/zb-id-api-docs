@@ -62,7 +62,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
 
     ```bash {{ title: 'cURL' }}
     # Using form body
-    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/token \
+    curl -X POST https://zbid-api.lioncapventures.com/oauth/token \
       -H "Content-Type: application/x-www-form-urlencoded" \
       -d "grant_type=client_credentials" \
       -d "client_id=your_client_id" \
@@ -70,7 +70,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
       -d "scope=users:read users:write"
 
     # Using Basic auth
-    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/token \
+    curl -X POST https://zbid-api.lioncapventures.com/oauth/token \
       -H "Content-Type: application/x-www-form-urlencoded" \
       -H "Authorization: Basic BASE64_ENCODED_CLIENT_ID:CLIENT_SECRET" \
       -d "grant_type=client_credentials"
@@ -81,7 +81,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
 
     # Using form body
     response = requests.post(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/token',
+        'https://zbid-api.lioncapventures.com/oauth/token',
         data={
             'grant_type': 'client_credentials',
             'client_id': 'your_client_id',
@@ -103,7 +103,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     })
 
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/token',
+      'https://zbid-api.lioncapventures.com/oauth/token',
       {
         method: 'POST',
         headers: {
@@ -157,7 +157,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     <CodeGroup title="Request" tag="POST" label="/admin/clients">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients \
+    curl -X POST https://zbid-api.lioncapventures.com/admin/clients \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
       -H "Content-Type: application/json" \
       -d '{
@@ -170,7 +170,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     import requests
 
     response = requests.post(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients',
+        'https://zbid-api.lioncapventures.com/admin/clients',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
             'Content-Type': 'application/json',
@@ -187,7 +187,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients',
+      'https://zbid-api.lioncapventures.com/admin/clients',
       {
         method: 'POST',
         headers: {
@@ -242,7 +242,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     <CodeGroup title="Request" tag="GET" label="/admin/clients">
 
     ```bash {{ title: 'cURL' }}
-    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients \
+    curl https://zbid-api.lioncapventures.com/admin/clients \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
     ```
 
@@ -250,7 +250,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     import requests
 
     response = requests.get(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients',
+        'https://zbid-api.lioncapventures.com/admin/clients',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
         }
@@ -261,7 +261,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients',
+      'https://zbid-api.lioncapventures.com/admin/clients',
       {
         headers: {
           'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
@@ -315,7 +315,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     <CodeGroup title="Request" tag="GET" label="/admin/clients/{id}">
 
     ```bash {{ title: 'cURL' }}
-    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/550e8400-e29b-41d4-a716-446655440000 \
+    curl https://zbid-api.lioncapventures.com/admin/clients/550e8400-e29b-41d4-a716-446655440000 \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
     ```
 
@@ -324,7 +324,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
 
     client_id = '550e8400-e29b-41d4-a716-446655440000'
     response = requests.get(
-        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/{client_id}',
+        f'https://zbid-api.lioncapventures.com/admin/clients/{client_id}',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
         }
@@ -336,7 +336,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     ```javascript {{ title: 'Node.js' }}
     const clientId = '550e8400-e29b-41d4-a716-446655440000'
     const response = await fetch(
-      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/${clientId}`,
+      `https://zbid-api.lioncapventures.com/admin/clients/${clientId}`,
       {
         headers: {
           'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
@@ -396,7 +396,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     <CodeGroup title="Request" tag="PATCH" label="/admin/clients/{id}">
 
     ```bash {{ title: 'cURL' }}
-    curl -X PATCH https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/550e8400-e29b-41d4-a716-446655440000 \
+    curl -X PATCH https://zbid-api.lioncapventures.com/admin/clients/550e8400-e29b-41d4-a716-446655440000 \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
       -H "Content-Type: application/json" \
       -d '{
@@ -411,7 +411,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
 
     client_id = '550e8400-e29b-41d4-a716-446655440000'
     response = requests.patch(
-        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/{client_id}',
+        f'https://zbid-api.lioncapventures.com/admin/clients/{client_id}',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
             'Content-Type': 'application/json',
@@ -429,7 +429,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     ```javascript {{ title: 'Node.js' }}
     const clientId = '550e8400-e29b-41d4-a716-446655440000'
     const response = await fetch(
-      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/${clientId}`,
+      `https://zbid-api.lioncapventures.com/admin/clients/${clientId}`,
       {
         method: 'PATCH',
         headers: {
@@ -481,7 +481,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     <CodeGroup title="Request" tag="POST" label="/admin/clients/{id}/rotate-secret">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/550e8400-e29b-41d4-a716-446655440000/rotate-secret \
+    curl -X POST https://zbid-api.lioncapventures.com/admin/clients/550e8400-e29b-41d4-a716-446655440000/rotate-secret \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
     ```
 
@@ -490,7 +490,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
 
     client_id = '550e8400-e29b-41d4-a716-446655440000'
     response = requests.post(
-        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/{client_id}/rotate-secret',
+        f'https://zbid-api.lioncapventures.com/admin/clients/{client_id}/rotate-secret',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
         }
@@ -503,7 +503,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     ```javascript {{ title: 'Node.js' }}
     const clientId = '550e8400-e29b-41d4-a716-446655440000'
     const response = await fetch(
-      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/${clientId}/rotate-secret`,
+      `https://zbid-api.lioncapventures.com/admin/clients/${clientId}/rotate-secret`,
       {
         method: 'POST',
         headers: {
@@ -556,7 +556,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     <CodeGroup title="Request" tag="DELETE" label="/admin/clients/{id}">
 
     ```bash {{ title: 'cURL' }}
-    curl -X DELETE https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/550e8400-e29b-41d4-a716-446655440000 \
+    curl -X DELETE https://zbid-api.lioncapventures.com/admin/clients/550e8400-e29b-41d4-a716-446655440000 \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
     ```
 
@@ -565,7 +565,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
 
     client_id = '550e8400-e29b-41d4-a716-446655440000'
     response = requests.delete(
-        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/{client_id}',
+        f'https://zbid-api.lioncapventures.com/admin/clients/{client_id}',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
         }
@@ -577,7 +577,7 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     ```javascript {{ title: 'Node.js' }}
     const clientId = '550e8400-e29b-41d4-a716-446655440000'
     const response = await fetch(
-      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/admin/clients/${clientId}`,
+      `https://zbid-api.lioncapventures.com/admin/clients/${clientId}`,
       {
         method: 'DELETE',
         headers: {

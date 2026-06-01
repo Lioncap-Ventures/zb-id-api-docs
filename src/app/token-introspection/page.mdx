@@ -72,7 +72,7 @@ The token introspection endpoint allows ZB services to validate access tokens an
     <CodeGroup title="Request" tag="POST" label="/oauth/introspect">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/introspect \
+    curl -X POST https://zbid-api.lioncapventures.com/oauth/introspect \
       -H "Content-Type: application/json" \
       -d '{
         "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -83,7 +83,7 @@ The token introspection endpoint allows ZB services to validate access tokens an
     import requests
 
     response = requests.post(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/introspect',
+        'https://zbid-api.lioncapventures.com/oauth/introspect',
         headers={'Content-Type': 'application/json'},
         json={
             'token': 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
@@ -102,7 +102,7 @@ The token introspection endpoint allows ZB services to validate access tokens an
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/introspect',
+      'https://zbid-api.lioncapventures.com/oauth/introspect',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -128,7 +128,7 @@ The token introspection endpoint allows ZB services to validate access tokens an
     {
       "active": true,
       "sub": "550e8400-e29b-41d4-a716-446655440000",
-      "iss": "https://unified-zb-id-ynddvnxogq-lz.a.run.app",
+      "iss": "https://zbid-api.lioncapventures.com",
       "exp": 1717200000,
       "iat": 1717113600,
       "scopes": [
@@ -191,7 +191,7 @@ The token introspection endpoint allows ZB services to validate access tokens an
     import requests
     from functools import lru_cache
 
-    ZB_ID_URL = 'https://unified-zb-id-ynddvnxogq-lz.a.run.app'
+    ZB_ID_URL = 'https://zbid-api.lioncapventures.com'
 
     def validate_token(token: str) -> dict | None:
         """Validate a token via introspection."""
@@ -228,7 +228,7 @@ The token introspection endpoint allows ZB services to validate access tokens an
 
     ```javascript {{ title: 'Express middleware (Node.js)' }}
     const ZB_ID_URL =
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app'
+      'https://zbid-api.lioncapventures.com'
 
     async function validateToken(token) {
       const res = await fetch(

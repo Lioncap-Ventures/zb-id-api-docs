@@ -142,7 +142,7 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
 
     for i in $(seq 1 $MAX_RETRIES); do
       RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-        -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login \
+        -X POST https://zbid-api.lioncapventures.com/auth/login \
         -H "Content-Type: application/json" \
         -d '{"phone": "+263771234567", "otp": "123456"}')
 
@@ -187,7 +187,7 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
 
     # Usage
     result = request_with_backoff(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+        'https://zbid-api.lioncapventures.com/auth/login',
         {'phone': '+263771234567', 'otp': '123456'}
     )
     print(result.json())
@@ -220,7 +220,7 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
 
     // Usage
     const response = await requestWithBackoff(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+      'https://zbid-api.lioncapventures.com/auth/login',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

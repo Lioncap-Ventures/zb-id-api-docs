@@ -220,7 +220,7 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
     <CodeGroup title="Error handling">
 
     ```bash {{ title: 'cURL' }}
-    curl -s -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login \
+    curl -s -X POST https://zbid-api.lioncapventures.com/auth/login \
       -H "Content-Type: application/json" \
       -d '{
         "phone": "invalid-phone"
@@ -231,7 +231,7 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
     import requests
 
     response = requests.post(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+        'https://zbid-api.lioncapventures.com/auth/login',
         json={'phone': '+263771234567', 'otp': '123456'}
     )
 
@@ -255,7 +255,7 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+      'https://zbid-api.lioncapventures.com/auth/login',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

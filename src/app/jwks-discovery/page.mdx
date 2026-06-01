@@ -56,14 +56,14 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
     <CodeGroup title="Request" tag="GET" label="/.well-known/jwks.json">
 
     ```bash {{ title: 'cURL' }}
-    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/.well-known/jwks.json
+    curl https://zbid-api.lioncapventures.com/.well-known/jwks.json
     ```
 
     ```python {{ title: 'Python' }}
     import requests
 
     response = requests.get(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/.well-known/jwks.json'
+        'https://zbid-api.lioncapventures.com/.well-known/jwks.json'
     )
 
     jwks = response.json()
@@ -72,7 +72,7 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/.well-known/jwks.json'
+      'https://zbid-api.lioncapventures.com/.well-known/jwks.json'
     )
 
     const jwks = await response.json()
@@ -149,14 +149,14 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
     <CodeGroup title="Request" tag="GET" label="/.well-known/openid-configuration">
 
     ```bash {{ title: 'cURL' }}
-    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/.well-known/openid-configuration
+    curl https://zbid-api.lioncapventures.com/.well-known/openid-configuration
     ```
 
     ```python {{ title: 'Python' }}
     import requests
 
     response = requests.get(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/.well-known/openid-configuration'
+        'https://zbid-api.lioncapventures.com/.well-known/openid-configuration'
     )
 
     config = response.json()
@@ -166,7 +166,7 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/.well-known/openid-configuration'
+      'https://zbid-api.lioncapventures.com/.well-known/openid-configuration'
     )
 
     const config = await response.json()
@@ -178,10 +178,10 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
 
     ```json {{ title: 'Response' }}
     {
-      "issuer": "https://unified-zb-id-ynddvnxogq-lz.a.run.app",
-      "jwks_uri": "https://unified-zb-id-ynddvnxogq-lz.a.run.app/.well-known/jwks.json",
-      "token_endpoint": "https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/token",
-      "introspection_endpoint": "https://unified-zb-id-ynddvnxogq-lz.a.run.app/oauth/introspect",
+      "issuer": "https://zbid-api.lioncapventures.com",
+      "jwks_uri": "https://zbid-api.lioncapventures.com/.well-known/jwks.json",
+      "token_endpoint": "https://zbid-api.lioncapventures.com/oauth/token",
+      "introspection_endpoint": "https://zbid-api.lioncapventures.com/oauth/introspect",
       "grant_types_supported": [
         "client_credentials"
       ],
@@ -259,7 +259,7 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
     import requests
     from jwt import PyJWKClient
 
-    ZB_ID_URL = 'https://unified-zb-id-ynddvnxogq-lz.a.run.app'
+    ZB_ID_URL = 'https://zbid-api.lioncapventures.com'
     JWKS_URL = f'{ZB_ID_URL}/.well-known/jwks.json'
 
     # Create a JWKS client (caches keys automatically)
@@ -314,7 +314,7 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
     import * as jose from 'jose'
 
     const ZB_ID_URL =
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app'
+      'https://zbid-api.lioncapventures.com'
     const JWKS_URL =
       `${ZB_ID_URL}/.well-known/jwks.json`
 

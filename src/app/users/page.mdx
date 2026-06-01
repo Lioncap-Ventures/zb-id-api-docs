@@ -101,7 +101,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     <CodeGroup title="Request" tag="GET" label="/users/me">
 
     ```bash {{ title: 'cURL' }}
-    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me \
+    curl https://zbid-api.lioncapventures.com/users/me \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
     ```
 
@@ -109,7 +109,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     import requests
 
     response = requests.get(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+        'https://zbid-api.lioncapventures.com/users/me',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
         }
@@ -120,7 +120,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+      'https://zbid-api.lioncapventures.com/users/me',
       {
         headers: {
           'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
@@ -179,7 +179,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     <CodeGroup title="Request" tag="PATCH" label="/users/me">
 
     ```bash {{ title: 'cURL' }}
-    curl -X PATCH https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me \
+    curl -X PATCH https://zbid-api.lioncapventures.com/users/me \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
       -H "Content-Type: application/json" \
       -d '{
@@ -193,7 +193,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     import requests
 
     response = requests.patch(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+        'https://zbid-api.lioncapventures.com/users/me',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
             'Content-Type': 'application/json',
@@ -210,7 +210,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+      'https://zbid-api.lioncapventures.com/users/me',
       {
         method: 'PATCH',
         headers: {
@@ -262,7 +262,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     <CodeGroup title="Request" tag="GET" label="/users/{id}">
 
     ```bash {{ title: 'cURL' }}
-    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/550e8400-e29b-41d4-a716-446655440000 \
+    curl https://zbid-api.lioncapventures.com/users/550e8400-e29b-41d4-a716-446655440000 \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
     ```
 
@@ -271,7 +271,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
 
     user_id = '550e8400-e29b-41d4-a716-446655440000'
     response = requests.get(
-        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/{user_id}',
+        f'https://zbid-api.lioncapventures.com/users/{user_id}',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
         }
@@ -283,7 +283,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     ```javascript {{ title: 'Node.js' }}
     const userId = '550e8400-e29b-41d4-a716-446655440000'
     const response = await fetch(
-      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/${userId}`,
+      `https://zbid-api.lioncapventures.com/users/${userId}`,
       {
         headers: {
           'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
@@ -328,7 +328,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     <CodeGroup title="Request" tag="GET" label="/users/phone/{phone}">
 
     ```bash {{ title: 'cURL' }}
-    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/phone/%2B263771234567 \
+    curl https://zbid-api.lioncapventures.com/users/phone/%2B263771234567 \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
     ```
 
@@ -339,7 +339,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     phone = '+263771234567'
     encoded_phone = quote(phone, safe='')
     response = requests.get(
-        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/phone/{encoded_phone}',
+        f'https://zbid-api.lioncapventures.com/users/phone/{encoded_phone}',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
         }
@@ -352,7 +352,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     const phone = '+263771234567'
     const encodedPhone = encodeURIComponent(phone)
     const response = await fetch(
-      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/phone/${encodedPhone}`,
+      `https://zbid-api.lioncapventures.com/users/phone/${encodedPhone}`,
       {
         headers: {
           'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
@@ -408,7 +408,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     <CodeGroup title="Request" tag="PATCH" label="/users/{id}/status">
 
     ```bash {{ title: 'cURL' }}
-    curl -X PATCH https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/550e8400-e29b-41d4-a716-446655440000/status \
+    curl -X PATCH https://zbid-api.lioncapventures.com/users/550e8400-e29b-41d4-a716-446655440000/status \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
       -H "Content-Type: application/json" \
       -d '{
@@ -422,7 +422,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
 
     user_id = '550e8400-e29b-41d4-a716-446655440000'
     response = requests.patch(
-        f'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/{user_id}/status',
+        f'https://zbid-api.lioncapventures.com/users/{user_id}/status',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
             'Content-Type': 'application/json',
@@ -439,7 +439,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
     ```javascript {{ title: 'Node.js' }}
     const userId = '550e8400-e29b-41d4-a716-446655440000'
     const response = await fetch(
-      `https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/${userId}/status`,
+      `https://zbid-api.lioncapventures.com/users/${userId}/status`,
       {
         method: 'PATCH',
         headers: {

@@ -50,7 +50,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     <CodeGroup title="Request" tag="POST" label="/auth/register">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/register \
+    curl -X POST https://zbid-api.lioncapventures.com/auth/register \
       -H "Content-Type: application/json" \
       -d '{
         "phone": "+263771234567",
@@ -65,7 +65,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     import requests
 
     response = requests.post(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/register',
+        'https://zbid-api.lioncapventures.com/auth/register',
         headers={'Content-Type': 'application/json'},
         json={
             'phone': '+263771234567',
@@ -82,7 +82,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/register',
+      'https://zbid-api.lioncapventures.com/auth/register',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,7 +144,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     <CodeGroup title="Request" tag="POST" label="/auth/login">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login \
+    curl -X POST https://zbid-api.lioncapventures.com/auth/login \
       -H "Content-Type: application/json" \
       -d '{
         "phone": "+263771234567",
@@ -156,7 +156,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     import requests
 
     response = requests.post(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+        'https://zbid-api.lioncapventures.com/auth/login',
         headers={'Content-Type': 'application/json'},
         json={
             'phone': '+263771234567',
@@ -171,7 +171,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/login',
+      'https://zbid-api.lioncapventures.com/auth/login',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -224,7 +224,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     <CodeGroup title="Request" tag="GET" label="/users/me">
 
     ```bash {{ title: 'cURL' }}
-    curl https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me \
+    curl https://zbid-api.lioncapventures.com/users/me \
       -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
     ```
 
@@ -232,7 +232,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     import requests
 
     response = requests.get(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+        'https://zbid-api.lioncapventures.com/users/me',
         headers={
             'Authorization': f'Bearer {access_token}',
         }
@@ -244,7 +244,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/users/me',
+      'https://zbid-api.lioncapventures.com/users/me',
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -302,7 +302,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     <CodeGroup title="Request" tag="POST" label="/auth/token/refresh">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/token/refresh \
+    curl -X POST https://zbid-api.lioncapventures.com/auth/token/refresh \
       -H "Content-Type: application/json" \
       -d '{
         "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
@@ -313,7 +313,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     import requests
 
     response = requests.post(
-        'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/token/refresh',
+        'https://zbid-api.lioncapventures.com/auth/token/refresh',
         headers={'Content-Type': 'application/json'},
         json={
             'refreshToken': 'eyJhbGciOiJIUzI1NiIs...',
@@ -327,7 +327,7 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://unified-zb-id-ynddvnxogq-lz.a.run.app/auth/token/refresh',
+      'https://zbid-api.lioncapventures.com/auth/token/refresh',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
