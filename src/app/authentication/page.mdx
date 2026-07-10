@@ -290,7 +290,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     {
       "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "aud": "zbid_client_a1b2c3d4e5f6",
-      "iss": "https://id.zbfintech.com"
+      "iss": "https://zbid-api.lioncapventures.com"
     }
     ```
 
@@ -650,7 +650,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     | Claim | Type | Description |
     |-------|------|-------------|
     | `sub` | string | The user's UUID |
-    | `iss` | string | Token issuer (the ZB ID issuer identifier, `https://id.zbfintech.com`) |
+    | `iss` | string | Token issuer (the ZB ID issuer identifier, `https://zbid-api.lioncapventures.com`) |
     | `aud` | string | Token audience: the `clientId` supplied at login, or `zb-id` by default |
     | `iat` | number | Issued-at time as a Unix timestamp |
     | `exp` | number | Expiration time as a Unix timestamp |
@@ -668,7 +668,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     | Claim | Type | Description |
     |-------|------|-------------|
     | `sub` | string | The OAuth client id |
-    | `iss` | string | Token issuer (the ZB ID issuer identifier, `https://id.zbfintech.com`) |
+    | `iss` | string | Token issuer (the ZB ID issuer identifier, `https://zbid-api.lioncapventures.com`) |
     | `iat` | number | Issued-at time as a Unix timestamp |
     | `exp` | number | Expiration time as a Unix timestamp |
     | `jti` | string | Unique token identifier |
@@ -684,7 +684,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     ```json {{ title: 'Decoded user token payload' }}
     {
       "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "iss": "https://id.zbfintech.com",
+      "iss": "https://zbid-api.lioncapventures.com",
       "aud": "zb-id",
       "iat": 1717148800,
       "exp": 1717149700,
@@ -700,7 +700,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     ```json {{ title: 'Decoded client token payload' }}
     {
       "sub": "zbid_client_a1b2c3d4e5f6",
-      "iss": "https://id.zbfintech.com",
+      "iss": "https://zbid-api.lioncapventures.com",
       "iat": 1717148800,
       "exp": 1717149700,
       "jti": "c1d2e3f4-a5b6-0000-1111-222233334444",

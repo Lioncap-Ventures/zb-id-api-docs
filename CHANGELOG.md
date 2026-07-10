@@ -10,7 +10,7 @@
 - Add the `driver` role and the `kyc:validate`, `kyc:credit-check`, and `kyc:screen` scopes to Roles & Permissions
 - Add a new KYC Verification page documenting all nine `/v1/kyc` endpoints, and link it from the navigation and home page
 - Correct the error codes to match the API (`INVALID_CREDENTIALS`, `RATE_LIMIT_EXCEEDED`, `VALIDATION_ERROR`) and refresh the Quickstart, OAuth Clients, and Discovery examples
-- Correct the token `iss` and discovery `issuer` value to the live issuer identifier `https://id.zbfintech.com`, while keeping `https://zbid-api.lioncapventures.com` as the request base URL, and note that discovery URLs derive from the issuer identifier
+- Set the token `iss` and all discovery URLs (`issuer`, `jwks_uri`, `token_endpoint`, `introspection_endpoint`) to the live issuer `https://zbid-api.lioncapventures.com` (staging issues tokens with `iss` `https://zbid-api-staging.lioncapventures.com`)
 - Document the remaining KYC endpoints: `POST /v1/kyc/screen-resolve`, `GET /v1/kyc/verifications/{id}`, and `GET /v1/kyc/verifications`
 
 ## 2025-07-29
