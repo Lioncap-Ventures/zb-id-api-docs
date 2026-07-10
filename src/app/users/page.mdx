@@ -1,7 +1,7 @@
 export const metadata = {
   title: 'Users',
   description:
-    'Manage user profiles, look up users by phone number, and control user account status.',
+    'Manage user profiles, update login channels, look up users by phone number, and control user account status.',
 }
 
 export const sections = [
@@ -15,7 +15,7 @@ export const sections = [
 
 # Users
 
-Users represent individuals registered in the ZB ID system. Each user has a profile, a KYC verification tier, and an account status. Authenticated users can view and update their own profiles, while administrators can look up and manage any user account. {{ className: 'lead' }}
+Users represent individuals registered in the ZB ID system. Each user has a profile, a KYC verification tier, and an account status. A user can hold an email, a phone number, or both, and either one serves as a login channel. Authenticated users can view and update their own profiles, while administrators can look up and manage any user account. {{ className: 'lead' }}
 
 ---
 
@@ -24,24 +24,24 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
 <Row>
   <Col>
 
-    The user model contains all the information associated with a registered account, including identity details, verification status, and assigned roles.
+    The profile response contains the information associated with a registered account, including its login channels, verification stamps, KYC tier, status, and assigned roles.
 
     ### Properties
 
     <Properties>
       <Property name="id" type="string (UUID)">
-        Unique identifier for the user.
+        Unique identifier for the user. This is the value carried in the `sub` claim of the user's tokens.
       </Property>
-      <Property name="phone" type="string">
-        The user's phone number in E.164 format (e.g., `+263771234567`).
+      <Property name="phone" type="string | null">
+        The user's phone number (for example, `+263771234567`). May be `null` if the account has only an email.
       </Property>
-      <Property name="email" type="string">
-        The user's email address. May be `null` if not provided.
+      <Property name="email" type="string | null">
+        The user's email address. May be `null` if the account has only a phone.
       </Property>
-      <Property name="firstName" type="string">
+      <Property name="firstName" type="string | null">
         The user's first name.
       </Property>
-      <Property name="lastName" type="string">
+      <Property name="lastName" type="string | null">
         The user's last name.
       </Property>
       <Property name="kycTier" type="string">
@@ -51,17 +51,23 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
         The current account status. One of `ACTIVE`, `SUSPENDED`, `LOCKED`, or `DEACTIVATED`.
       </Property>
       <Property name="roles" type="array">
-        List of roles assigned to the user (e.g., `["user"]` or `["user", "admin"]`).
+        Roles assigned to the user, each with an id, name, description, and optional subsidiary scope.
       </Property>
       <Property name="createdAt" type="string (ISO 8601)">
-        Timestamp of when the user account was created.
+        Timestamp of when the account was created.
+      </Property>
+      <Property name="emailVerifiedAt" type="string (ISO 8601) | null">
+        When the current email was verified, or `null` if unverified. Changing the email resets this to `null`.
+      </Property>
+      <Property name="phoneVerifiedAt" type="string (ISO 8601) | null">
+        When the current phone was verified, or `null` if unverified. Changing the phone resets this to `null`.
       </Property>
     </Properties>
 
   </Col>
   <Col sticky>
 
-    ```json {{ title: 'User object' }}
+    ```json {{ title: 'User profile object' }}
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "phone": "+263771234567",
@@ -70,17 +76,26 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
       "lastName": "Moyo",
       "kycTier": "BASIC",
       "status": "ACTIVE",
-      "roles": ["user"],
-      "createdAt": "2026-05-15T08:30:00Z"
+      "roles": [
+        {
+          "id": "a0000000-0000-0000-0000-000000000001",
+          "name": "customer",
+          "description": "Standard retail customer",
+          "subsidiaryScope": null
+        }
+      ],
+      "createdAt": "2026-05-15T08:30:00Z",
+      "emailVerifiedAt": "2026-05-16T09:00:00Z",
+      "phoneVerifiedAt": null
     }
     ```
 
     <Note>
-      **KYC Tiers:**
+      **KYC tiers:**
       - `NONE` - No verification completed
-      - `BASIC` - Phone number verified
-      - `STANDARD` - ID document verified
-      - `ENHANCED` - Full biometric and address verification
+      - `BASIC` - National ID validated against the e-Gov registry
+      - `STANDARD` - Intermediate verification
+      - `ENHANCED` - Full verification
     </Note>
 
   </Col>
@@ -142,8 +157,17 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
       "lastName": "Moyo",
       "kycTier": "BASIC",
       "status": "ACTIVE",
-      "roles": ["user"],
-      "createdAt": "2026-05-15T08:30:00Z"
+      "roles": [
+        {
+          "id": "a0000000-0000-0000-0000-000000000001",
+          "name": "customer",
+          "description": "Standard retail customer",
+          "subsidiaryScope": null
+        }
+      ],
+      "createdAt": "2026-05-15T08:30:00Z",
+      "emailVerifiedAt": "2026-05-16T09:00:00Z",
+      "phoneVerifiedAt": null
     }
     ```
 
@@ -157,7 +181,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
 <Row>
   <Col>
 
-    Update the profile of the currently authenticated user. Only the fields you include in the request body will be updated.
+    Update the profile of the currently authenticated user. Only the fields you include are changed. This endpoint can also add, change, or remove login channels.
 
     ### Optional attributes
 
@@ -169,9 +193,25 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
         Updated last name.
       </Property>
       <Property name="email" type="string">
-        Updated email address.
+        Set or change the email. Must be a valid email address. Stored lowercased and trimmed.
+      </Property>
+      <Property name="phone" type="string">
+        Set or change the phone. Must match `^\+?[0-9]{10,15}$`.
+      </Property>
+      <Property name="removeEmail" type="boolean">
+        When `true`, removes the email from the account. Defaults to `false`.
+      </Property>
+      <Property name="removePhone" type="boolean">
+        When `true`, removes the phone from the account. Defaults to `false`.
       </Property>
     </Properties>
+
+    ### Channel semantics
+
+    - Setting an identifier that already belongs to **another** user returns `409 CONFLICT`.
+    - Changing an identifier to a new value resets its verified stamp (`emailVerifiedAt` or `phoneVerifiedAt`) to `null`. Submitting the identifier's current value is a no-op and leaves the stamp untouched.
+    - Setting and removing the same channel in one request (for example, `email` plus `removeEmail: true`) returns `400 BAD_REQUEST` with `Cannot set and remove the same identifier`.
+    - Removing your last remaining login identifier returns `400 BAD_REQUEST` with `Cannot remove your only login identifier`. A user must always keep at least one of email or phone.
 
   </Col>
   <Col sticky>
@@ -183,7 +223,6 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
       -H "Content-Type: application/json" \
       -d '{
-        "firstName": "Tendai",
         "lastName": "Moyo-Ncube",
         "email": "tendai.ncube@example.com"
       }'
@@ -199,7 +238,6 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
             'Content-Type': 'application/json',
         },
         json={
-            'firstName': 'Tendai',
             'lastName': 'Moyo-Ncube',
             'email': 'tendai.ncube@example.com',
         }
@@ -218,7 +256,6 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          firstName: 'Tendai',
           lastName: 'Moyo-Ncube',
           email: 'tendai.ncube@example.com',
         }),
@@ -239,10 +276,41 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
       "lastName": "Moyo-Ncube",
       "kycTier": "BASIC",
       "status": "ACTIVE",
-      "roles": ["user"],
-      "createdAt": "2026-05-15T08:30:00Z"
+      "roles": [
+        {
+          "id": "a0000000-0000-0000-0000-000000000001",
+          "name": "customer",
+          "description": "Standard retail customer",
+          "subsidiaryScope": null
+        }
+      ],
+      "createdAt": "2026-05-15T08:30:00Z",
+      "emailVerifiedAt": null,
+      "phoneVerifiedAt": null
     }
     ```
+
+    ```json {{ title: 'Conflict (409)' }}
+    {
+      "error": "CONFLICT",
+      "message": "Email already registered to another account, log in with that email instead",
+      "status": 409,
+      "timestamp": "2026-07-10T10:21:00.321Z"
+    }
+    ```
+
+    ```json {{ title: 'Removing your only identifier (400)' }}
+    {
+      "error": "BAD_REQUEST",
+      "message": "Cannot remove your only login identifier",
+      "status": 400,
+      "timestamp": "2026-07-10T10:22:00.111Z"
+    }
+    ```
+
+    <Note>
+      To remove a channel, send `{ "removePhone": true }` or `{ "removeEmail": true }`. Changing the email in the example above cleared `emailVerifiedAt`.
+    </Note>
 
   </Col>
 </Row>
@@ -305,8 +373,17 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
       "lastName": "Moyo",
       "kycTier": "BASIC",
       "status": "ACTIVE",
-      "roles": ["user"],
-      "createdAt": "2026-05-15T08:30:00Z"
+      "roles": [
+        {
+          "id": "a0000000-0000-0000-0000-000000000001",
+          "name": "customer",
+          "description": "Standard retail customer",
+          "subsidiaryScope": null
+        }
+      ],
+      "createdAt": "2026-05-15T08:30:00Z",
+      "emailVerifiedAt": "2026-05-16T09:00:00Z",
+      "phoneVerifiedAt": null
     }
     ```
 
@@ -320,7 +397,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
 <Row>
   <Col>
 
-    Look up a user by their phone number. The phone number must be URL-encoded (e.g., `%2B263771234567` for `+263771234567`). This endpoint requires the **admin:users** scope.
+    Look up a user by their phone number. The phone number must be URL-encoded (for example, `%2B263771234567` for `+263771234567`). This endpoint requires the **admin:users** scope.
 
   </Col>
   <Col sticky>
@@ -374,8 +451,17 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
       "lastName": "Moyo",
       "kycTier": "BASIC",
       "status": "ACTIVE",
-      "roles": ["user"],
-      "createdAt": "2026-05-15T08:30:00Z"
+      "roles": [
+        {
+          "id": "a0000000-0000-0000-0000-000000000001",
+          "name": "customer",
+          "description": "Standard retail customer",
+          "subsidiaryScope": null
+        }
+      ],
+      "createdAt": "2026-05-15T08:30:00Z",
+      "emailVerifiedAt": "2026-05-16T09:00:00Z",
+      "phoneVerifiedAt": null
     }
     ```
 
@@ -389,7 +475,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
 <Row>
   <Col>
 
-    Update the account status of a user. This endpoint requires the **admin:users** scope. Use this to suspend, lock, or deactivate user accounts.
+    Update the account status of a user. This endpoint requires the **admin:users** scope. Use it to suspend, lock, reactivate, or deactivate accounts.
 
     ### Required attributes
 
@@ -398,9 +484,11 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
         The new account status. One of `ACTIVE`, `SUSPENDED`, `LOCKED`, or `DEACTIVATED`.
       </Property>
       <Property name="reason" type="string">
-        A description of why the status is being changed. This is stored for audit purposes.
+        Optional. A description of why the status is changing, stored for audit purposes.
       </Property>
     </Properties>
+
+    Setting the status to `SUSPENDED` or `DEACTIVATED` revokes all of the user's active sessions. Setting it back to `ACTIVE` clears the failed-attempt counter and any lock. The response is a confirmation message, not the full user object.
 
   </Col>
   <Col sticky>
@@ -433,7 +521,7 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
         }
     )
 
-    updated_user = response.json()
+    result = response.json()
     ```
 
     ```javascript {{ title: 'Node.js' }}
@@ -453,31 +541,19 @@ Users represent individuals registered in the ZB ID system. Each user has a prof
       }
     )
 
-    const updatedUser = await response.json()
+    const result = await response.json()
     ```
 
     </CodeGroup>
 
     ```json {{ title: 'Response' }}
     {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "phone": "+263771234567",
-      "email": "tendai.moyo@example.com",
-      "firstName": "Tendai",
-      "lastName": "Moyo",
-      "kycTier": "BASIC",
-      "status": "SUSPENDED",
-      "roles": ["user"],
-      "createdAt": "2026-05-15T08:30:00Z"
+      "message": "User status updated to SUSPENDED"
     }
     ```
 
     <Note>
-      **Status transitions:**
-      - `ACTIVE` can be changed to `SUSPENDED`, `LOCKED`, or `DEACTIVATED`
-      - `SUSPENDED` can be changed back to `ACTIVE`
-      - `LOCKED` can be changed back to `ACTIVE`
-      - `DEACTIVATED` is a permanent state and cannot be reversed
+      Suspending or deactivating an account immediately revokes its sessions. Reactivating an account (`ACTIVE`) resets its failed-login counter and clears any lock.
     </Note>
 
   </Col>
