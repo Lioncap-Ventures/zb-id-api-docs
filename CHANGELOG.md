@@ -8,8 +8,10 @@
 - Update the Users page for nullable `phone`, the `emailVerifiedAt` and `phoneVerifiedAt` stamps, and the full `PATCH /users/me` channel semantics including all four error cases
 - Update Token Introspection for the new `aud`, `email`, and `phone` fields, absent `tokenType` on user tokens, and separate user and client token examples
 - Add the `driver` role and the `kyc:validate`, `kyc:credit-check`, and `kyc:screen` scopes to Roles & Permissions
-- Add a new KYC Verification page documenting the six `/v1/kyc` endpoints, and link it from the navigation and home page
+- Add a new KYC Verification page documenting all nine `/v1/kyc` endpoints, and link it from the navigation and home page
 - Correct the error codes to match the API (`INVALID_CREDENTIALS`, `RATE_LIMIT_EXCEEDED`, `VALIDATION_ERROR`) and refresh the Quickstart, OAuth Clients, and Discovery examples
+- Correct the token `iss` and discovery `issuer` value to the live issuer identifier `https://id.zbfintech.com`, while keeping `https://zbid-api.lioncapventures.com` as the request base URL, and note that discovery URLs derive from the issuer identifier
+- Document the remaining KYC endpoints: `POST /v1/kyc/screen-resolve`, `GET /v1/kyc/verifications/{id}`, and `GET /v1/kyc/verifications`
 
 ## 2025-07-29
 
