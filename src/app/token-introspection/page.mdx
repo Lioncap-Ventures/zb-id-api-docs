@@ -38,7 +38,7 @@ The token introspection endpoint allows ZB services to validate access tokens an
         `true` if the token is valid and has not expired.
       </Property>
       <Property name="sub" type="string">
-        The subject identifier. For user tokens, this is the user's UUID. For client tokens, this is the client ID.
+        The subject identifier. For user tokens this is the user's UUID; for client tokens it is the OAuth client id.
       </Property>
       <Property name="iss" type="string">
         The issuer URL of the token (the ZB ID base URL).
@@ -50,21 +50,34 @@ The token introspection endpoint allows ZB services to validate access tokens an
         Token issued-at time as a Unix timestamp.
       </Property>
       <Property name="scopes" type="array">
-        List of permission scopes granted to this token.
+        Permission scopes granted to this token. Present on both token types.
       </Property>
-      <Property name="roles" type="array">
-        List of roles assigned to the token subject. Empty for client tokens.
+      <Property name="roles" type="array | null">
+        Roles assigned to the user. Present on user tokens; absent for client tokens.
       </Property>
-      <Property name="kycTier" type="string">
-        The KYC verification tier of the user (e.g., `none`, `basic`, `enhanced`, `full`). Only present on user tokens.
+      <Property name="kycTier" type="string | null">
+        The user's KYC tier: `NONE`, `BASIC`, `STANDARD`, or `ENHANCED`. Present on user tokens; absent for client tokens.
       </Property>
-      <Property name="tokenType" type="string">
-        Either `user` or `client`, indicating how the token was issued.
+      <Property name="tokenType" type="string | null">
+        `client` for client credentials tokens. Absent (`null`) for user tokens.
       </Property>
-      <Property name="clientId" type="string">
-        The OAuth client ID that requested the token. Present on both user and client tokens.
+      <Property name="clientId" type="string | null">
+        The OAuth client id. Present on client tokens only.
+      </Property>
+      <Property name="aud" type="string | null">
+        The token audience. Present on user tokens (the `clientId` supplied at login, or `zb-id` by default). Absent for client tokens.
+      </Property>
+      <Property name="email" type="string | null">
+        The user's email, when the account has one. Present on user tokens only.
+      </Property>
+      <Property name="phone" type="string | null">
+        The user's phone, when the account has one. Present on user tokens only.
       </Property>
     </Properties>
+
+    <Note>
+      User tokens do **not** carry a `tokenType` value; distinguish them by the absence of `tokenType` (or by the presence of `aud`, `roles`, and `kycTier`). Client tokens have `tokenType: "client"` and a `clientId`.
+    </Note>
 
   </Col>
   <Col sticky>
@@ -124,7 +137,7 @@ The token introspection endpoint allows ZB services to validate access tokens an
 
     </CodeGroup>
 
-    ```json {{ title: 'Response (active token)' }}
+    ```json {{ title: 'Response (active user token)' }}
     {
       "active": true,
       "sub": "550e8400-e29b-41d4-a716-446655440000",
@@ -138,9 +151,10 @@ The token introspection endpoint allows ZB services to validate access tokens an
         "profile:write"
       ],
       "roles": ["merchant"],
-      "kycTier": "enhanced",
-      "tokenType": "user",
-      "clientId": "zb-mobile-app"
+      "kycTier": "ENHANCED",
+      "aud": "zb-id",
+      "email": "tendai.moyo@example.com",
+      "phone": "+263771234567"
     }
     ```
 
@@ -289,33 +303,37 @@ The token introspection endpoint allows ZB services to validate access tokens an
 <Row>
   <Col>
 
-    ZB ID issues two types of tokens, and the `tokenType` field in the introspection response tells you which one you are looking at.
+    ZB ID issues two types of tokens. The `tokenType` field tells you which one you are looking at: it is `client` for client credentials tokens and absent for user tokens.
 
-    ### User tokens (`tokenType: "user"`)
+    ### User tokens
 
-    Issued when a human user authenticates through the login flow. These tokens carry:
+    Issued when a human user authenticates through the login, register, or refresh flow. These tokens carry:
 
     - **sub**: The user's UUID
-    - **roles**: The user's assigned roles (e.g., `["customer"]`, `["admin", "staff"]`)
+    - **roles**: The user's assigned roles (for example, `["customer"]`, `["admin", "staff"]`)
     - **scopes**: Permissions derived from the user's roles
-    - **kycTier**: The user's KYC verification level
+    - **kycTier**: The user's KYC verification tier
+    - **aud**: The token audience (the `clientId` supplied at login, or `zb-id`)
+    - **email** / **phone**: Present when the account has that channel
+    - **tokenType**: Absent
 
     User tokens represent a specific person and should be used to enforce user-level access controls.
 
     ### Client tokens (`tokenType: "client"`)
 
-    Issued via the OAuth client credentials grant. These tokens are used for service-to-service communication where no user context is needed. They carry:
+    Issued via the OAuth client credentials grant, for service-to-service communication where no user context is needed. They carry:
 
-    - **sub**: The client ID (not a user UUID)
-    - **roles**: Always an empty array
-    - **scopes**: The scopes granted to the OAuth client application
-    - **kycTier**: Not present
+    - **sub**: The OAuth client id (not a user UUID)
+    - **clientId**: The OAuth client id
+    - **scopes**: The scopes granted to the client
+    - **tokenType**: `client`
+    - **roles**, **kycTier**, **aud**, **email**, **phone**: Not present
 
-    Client tokens represent an application, not a person. They are appropriate for background jobs, data synchronization, and inter-service API calls.
+    Client tokens represent an application, not a person. They are appropriate for background jobs, central KYC checks, and inter-service API calls.
 
     ### Distinguishing tokens in your service
 
-    Always check `tokenType` before making authorization decisions. For example, an endpoint that returns user-specific data should reject client tokens, while a batch processing endpoint might accept only client tokens.
+    Treat a response with `tokenType: "client"` as a client token, and a response without a `tokenType` (equivalently, one carrying `aud`, `roles`, and `kycTier`) as a user token. An endpoint that returns user-specific data should reject client tokens, while a batch or KYC endpoint might accept only client tokens.
 
   </Col>
   <Col sticky>
@@ -324,7 +342,6 @@ The token introspection endpoint allows ZB services to validate access tokens an
     {
       "active": true,
       "sub": "550e8400-e29b-41d4-a716-446655440000",
-      "tokenType": "user",
       "roles": ["merchant"],
       "scopes": [
         "banking:read",
@@ -332,8 +349,10 @@ The token introspection endpoint allows ZB services to validate access tokens an
         "profile:read",
         "profile:write"
       ],
-      "kycTier": "enhanced",
-      "clientId": "zb-mobile-app",
+      "kycTier": "ENHANCED",
+      "aud": "zb-id",
+      "email": "tendai.moyo@example.com",
+      "phone": "+263771234567",
       "exp": 1717200000,
       "iat": 1717113600
     }
@@ -342,22 +361,21 @@ The token introspection endpoint allows ZB services to validate access tokens an
     ```json {{ title: 'Client token introspection' }}
     {
       "active": true,
-      "sub": "zb-lending-service",
+      "sub": "zbid_client_lending_svc",
       "tokenType": "client",
-      "roles": [],
+      "clientId": "zbid_client_lending_svc",
       "scopes": [
-        "banking:read",
-        "lending:read",
-        "lending:write"
+        "kyc:validate",
+        "kyc:credit-check",
+        "kyc:screen"
       ],
-      "clientId": "zb-lending-service",
       "exp": 1717200000,
       "iat": 1717196400
     }
     ```
 
     <Note>
-      **Security tip:** Never assume a token is a user token just because it has scopes. Always check `tokenType` explicitly. A client token with `profile:read` should not be used to fetch a specific user's profile data without additional authorization logic.
+      **Security tip:** Never assume a token is a user token just because it has scopes. A user token has no `tokenType`; a client token has `tokenType: "client"`. A client token with `profile:read` should not be used to fetch a specific user's profile without additional authorization logic.
     </Note>
 
   </Col>
