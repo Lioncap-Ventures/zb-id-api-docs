@@ -108,11 +108,13 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
 
     The OpenID Connect discovery endpoint returns metadata about the ZB ID authorization server. Clients and services use this document to discover endpoint URLs, supported grant types, and other configuration details automatically.
 
+    The URLs in the discovery document are derived from the issuer identifier (`https://id.zbfintech.com`), which is also the value carried in every token's `iss` claim. When you make requests, send them to the documented base URL (`https://zbid-api.lioncapventures.com`); use the issuer identifier only to match the `iss` claim during token verification.
+
     ### Response fields
 
     <Properties>
       <Property name="issuer" type="string">
-        The base URL of the ZB ID authorization server. Tokens issued by ZB ID will have this value in their `iss` claim.
+        The issuer identifier of the ZB ID authorization server (`https://id.zbfintech.com`). Tokens issued by ZB ID carry this value in their `iss` claim, so verify the `iss` claim against it.
       </Property>
       <Property name="jwks_uri" type="string">
         URL of the JWKS endpoint for retrieving public keys.
@@ -175,10 +177,10 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
 
     ```json {{ title: 'Response' }}
     {
-      "issuer": "https://zbid-api.lioncapventures.com",
-      "jwks_uri": "https://zbid-api.lioncapventures.com/.well-known/jwks.json",
-      "token_endpoint": "https://zbid-api.lioncapventures.com/oauth/token",
-      "introspection_endpoint": "https://zbid-api.lioncapventures.com/oauth/introspect",
+      "issuer": "https://id.zbfintech.com",
+      "jwks_uri": "https://id.zbfintech.com/.well-known/jwks.json",
+      "token_endpoint": "https://id.zbfintech.com/oauth/token",
+      "introspection_endpoint": "https://id.zbfintech.com/oauth/introspect",
       "grant_types_supported": [
         "client_credentials"
       ],
@@ -250,6 +252,7 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
     from jwt import PyJWKClient
 
     ZB_ID_URL = 'https://zbid-api.lioncapventures.com'
+    ZB_ID_ISSUER = 'https://id.zbfintech.com'
     JWKS_URL = f'{ZB_ID_URL}/.well-known/jwks.json'
 
     # Create a JWKS client (caches keys automatically)
@@ -265,7 +268,7 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
             token,
             signing_key.key,
             algorithms=['RS256'],
-            issuer=ZB_ID_URL,
+            issuer=ZB_ID_ISSUER,
             options={
                 'verify_exp': True,
                 'verify_iss': True,
@@ -305,6 +308,8 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
 
     const ZB_ID_URL =
       'https://zbid-api.lioncapventures.com'
+    const ZB_ID_ISSUER =
+      'https://id.zbfintech.com'
     const JWKS_URL =
       `${ZB_ID_URL}/.well-known/jwks.json`
 
@@ -318,7 +323,7 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
         token,
         JWKS,
         {
-          issuer: ZB_ID_URL,
+          issuer: ZB_ID_ISSUER,
           algorithms: ['RS256'],
         }
       )
