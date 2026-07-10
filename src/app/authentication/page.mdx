@@ -1,53 +1,189 @@
 export const metadata = {
   title: 'Authentication',
   description:
-    'Learn about user authentication flows, password management, OAuth2 client credentials, and token structure in the ZB ID API.',
+    'Learn about dual-channel user authentication, registration, OAuth2 client credentials, token audience, and JWT structure in the ZB ID API.',
 }
 
 export const sections = [
-  { title: 'User authentication', id: 'user-authentication' },
+  { title: 'Registration', id: 'registration' },
+  { title: 'User login', id: 'user-login' },
+  { title: 'Token audience', id: 'token-audience' },
+  { title: 'Account lockout', id: 'account-lockout' },
+  { title: 'Session management', id: 'session-management' },
   { title: 'Password management', id: 'password-management' },
+  { title: 'Refreshing tokens', id: 'refreshing-tokens' },
   { title: 'OAuth2 client credentials', id: 'oauth2-client-credentials' },
   { title: 'Token structure', id: 'token-structure' },
 ]
 
 # Authentication
 
-ZB ID supports two authentication models: user authentication with phone and password for end-user applications, and OAuth2 client credentials for service-to-service integrations. This guide covers both flows in detail, along with password management and the structure of issued tokens. {{ className: 'lead' }}
+ZB ID supports two authentication models: user authentication for end-user applications and OAuth2 client credentials for service-to-service integrations. A user identity is a single account (identified by a UUID) that can carry an email, a phone number, or both. Email and phone are interchangeable login channels bound to that one identity. This guide covers registration, login, token audience, password management, and the structure of issued tokens. {{ className: 'lead' }}
 
 ---
 
-## User authentication {{ id: 'user-authentication' }}
+## Registration {{ id: 'registration', tag: 'POST', label: '/auth/register' }}
 
 <Row>
   <Col>
 
-    User authentication follows a standard flow: the client submits a phone number and password to the login endpoint, and the API returns a signed JWT access token and a refresh token.
+    Create a new user account. You must supply at least one login channel, an email address, a phone number, or both, together with a password. The account is created with the default `customer` role and a KYC tier of `NONE`.
+
+    ### Attributes
+
+    <Properties>
+      <Property name="email" type="string">
+        The user's email address. Optional if a phone number is supplied. Stored lowercased and trimmed, so login is case-insensitive.
+      </Property>
+      <Property name="phone" type="string">
+        The user's phone number. Optional if an email is supplied. Must match `^\+?[0-9]{10,15}$` (for example, `+263771234567`).
+      </Property>
+      <Property name="password" type="string">
+        The account password. Must be between 8 and 128 characters.
+      </Property>
+      <Property name="firstName" type="string">
+        Optional. The user's first name.
+      </Property>
+      <Property name="lastName" type="string">
+        Optional. The user's last name.
+      </Property>
+      <Property name="clientId" type="string">
+        Optional. The OAuth client requesting the token. When supplied it must reference an existing, `ACTIVE` OAuth client. See [Token audience](#token-audience).
+      </Property>
+      <Property name="channel" type="string">
+        Optional. A free-form label for the origin of the request (for example, `web` or `mobile`). Recorded on the session and in the audit log.
+      </Property>
+    </Properties>
+
+    ### Behaviour
+
+    - At least one of `email` or `phone` is required. If both are omitted the API returns `400` with the message `Either an email or a phone number is required`.
+    - If the email is already registered, the API returns `409` with `Email already registered, log in with that email instead`.
+    - If the phone is already registered, the API returns `409` with `Phone number already registered, log in with that phone instead`.
+    - On success the response is `201 Created` and contains the token pair and a user summary.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/auth/register">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://zbid-api.lioncapventures.com/auth/register \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "tatenda.moyo@example.com",
+        "phone": "+263771234567",
+        "password": "secureP@ss1",
+        "firstName": "Tatenda",
+        "lastName": "Moyo"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://zbid-api.lioncapventures.com/auth/register',
+        headers={'Content-Type': 'application/json'},
+        json={
+            'email': 'tatenda.moyo@example.com',
+            'phone': '+263771234567',
+            'password': 'secureP@ss1',
+            'firstName': 'Tatenda',
+            'lastName': 'Moyo',
+        }
+    )
+
+    data = response.json()
+    access_token = data['accessToken']
+    refresh_token = data['refreshToken']
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://zbid-api.lioncapventures.com/auth/register',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'tatenda.moyo@example.com',
+          phone: '+263771234567',
+          password: 'secureP@ss1',
+          firstName: 'Tatenda',
+          lastName: 'Moyo',
+        }),
+      }
+    )
+
+    const data = await response.json()
+    const accessToken = data.accessToken
+    const refreshToken = data.refreshToken
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response (201)' }}
+    {
+      "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refreshToken": "sT9kQ2mVr8...",
+      "tokenType": "Bearer",
+      "expiresIn": 900,
+      "user": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "phone": "+263771234567",
+        "email": "tatenda.moyo@example.com",
+        "firstName": "Tatenda",
+        "lastName": "Moyo",
+        "kycTier": "NONE",
+        "roles": ["customer"]
+      }
+    }
+    ```
+
+    <Note>
+      You can register with just an email or just a phone. Supply whichever channels you want the user to log in with; either one on its own is enough.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## User login {{ id: 'user-login', tag: 'POST', label: '/auth/login' }}
+
+<Row>
+  <Col>
+
+    Authenticate with either an email or a phone number, plus the account password. Email lookups are case-insensitive and trimmed, so `Tatenda.Moyo@Example.com` resolves to the same identity as `tatenda.moyo@example.com`. On success the API returns a new access and refresh token pair.
 
     ### Authentication flow
 
-    1. The client sends `POST /auth/login` with `phone` and `password`.
+    1. The client sends `POST /auth/login` with `email` (or `phone`) and `password`.
     2. The API validates the credentials and returns an access token and a refresh token.
     3. The client includes the access token in the `Authorization: Bearer <token>` header on every subsequent request.
     4. When the access token expires, the client sends the refresh token to `POST /auth/token/refresh` to obtain a new token pair.
 
-    ### Account lockout
+    ### Attributes
 
-    To protect against brute-force attacks, ZB ID enforces account lockout after repeated failed login attempts.
+    <Properties>
+      <Property name="email" type="string">
+        The email registered on the account. Supply either this or `phone`.
+      </Property>
+      <Property name="phone" type="string">
+        The phone number registered on the account. Supply either this or `email`.
+      </Property>
+      <Property name="password" type="string">
+        The account password.
+      </Property>
+      <Property name="clientId" type="string">
+        Optional. The OAuth client requesting the token. When supplied it must reference an existing, `ACTIVE` OAuth client. See [Token audience](#token-audience).
+      </Property>
+      <Property name="channel" type="string">
+        Optional. A free-form label for the origin of the request.
+      </Property>
+    </Properties>
 
-    - **Threshold:** 5 consecutive failed attempts
-    - **Lockout duration:** 30 minutes
-    - **Reset:** The counter resets after a successful login or when the lockout period expires.
-
-    Failed attempts are tracked per phone number, regardless of the source IP address.
-
-    ### Session management
-
-    ZB ID limits the number of concurrent active sessions per user account.
-
-    - **Maximum concurrent sessions:** 3
-    - When a user logs in and already has 3 active sessions, the oldest session is automatically revoked.
-    - Users can view and revoke individual sessions through the `/sessions` endpoints.
+    When both `email` and `phone` are supplied, the email is used to resolve the account. Invalid credentials return `401 INVALID_CREDENTIALS` with the message `Invalid credentials`, regardless of whether the account exists.
 
   </Col>
   <Col sticky>
@@ -58,7 +194,7 @@ ZB ID supports two authentication models: user authentication with phone and pas
     curl -X POST https://zbid-api.lioncapventures.com/auth/login \
       -H "Content-Type: application/json" \
       -d '{
-        "phone": "+263771234567",
+        "email": "tatenda.moyo@example.com",
         "password": "secureP@ss1"
       }'
     ```
@@ -70,7 +206,7 @@ ZB ID supports two authentication models: user authentication with phone and pas
         'https://zbid-api.lioncapventures.com/auth/login',
         headers={'Content-Type': 'application/json'},
         json={
-            'phone': '+263771234567',
+            'email': 'tatenda.moyo@example.com',
             'password': 'secureP@ss1',
         }
     )
@@ -87,7 +223,7 @@ ZB ID supports two authentication models: user authentication with phone and pas
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: '+263771234567',
+          email: 'tatenda.moyo@example.com',
           password: 'secureP@ss1',
         }),
       }
@@ -102,15 +238,24 @@ ZB ID supports two authentication models: user authentication with phone and pas
 
     ```json {{ title: 'Response' }}
     {
-      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "expiresIn": 86400,
-      "tokenType": "Bearer"
+      "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refreshToken": "sT9kQ2mVr8...",
+      "tokenType": "Bearer",
+      "expiresIn": 900,
+      "user": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "phone": "+263771234567",
+        "email": "tatenda.moyo@example.com",
+        "firstName": "Tatenda",
+        "lastName": "Moyo",
+        "kycTier": "BASIC",
+        "roles": ["customer"]
+      }
     }
     ```
 
     <Note>
-      After 5 failed login attempts, the account is locked for 30 minutes. During lockout, all login requests for that phone number will return `403 Forbidden` regardless of whether the password is correct.
+      Logging in with the phone is identical: send `{ "phone": "+263771234567", "password": "..." }`. Whichever channel you use, the token's `sub` claim is the same user UUID.
     </Note>
 
   </Col>
@@ -118,7 +263,105 @@ ZB ID supports two authentication models: user authentication with phone and pas
 
 ---
 
-## Password management {{ tag: 'POST', label: '/auth/password/change' }}
+## Token audience {{ id: 'token-audience' }}
+
+<Row>
+  <Col>
+
+    Both `/auth/login` and `/auth/register` accept an optional `clientId`. This binds the issued access token to a specific OAuth client through the JWT `aud` (audience) claim, which lets downstream services confirm a token was minted for them.
+
+    - When `clientId` is supplied it must reference an existing OAuth client whose status is `ACTIVE`. An unknown or inactive client id returns `400` with the message `Unknown clientId`. Validation happens before any account is created, so a bad `clientId` never leaves a half-created user behind.
+    - When `clientId` is omitted, the token's `aud` defaults to `zb-id`.
+    - The resolved audience is captured on the session at login and is preserved across refresh token rotation, so a later change to the client does not break an active session's refresh.
+    - The `aud` claim serialises as a plain JSON string (not an array).
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'Login with a clientId' }}
+    {
+      "email": "tatenda.moyo@example.com",
+      "password": "secureP@ss1",
+      "clientId": "zbid_client_a1b2c3d4e5f6"
+    }
+    ```
+
+    ```json {{ title: 'Resulting token aud claim' }}
+    {
+      "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "aud": "zbid_client_a1b2c3d4e5f6",
+      "iss": "https://zbid-api.lioncapventures.com"
+    }
+    ```
+
+    <Note>
+      Register the client through the [OAuth Clients API](/oauth-clients) before referencing it here. Tokens issued without a `clientId` carry `"aud": "zb-id"`.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Account lockout {{ id: 'account-lockout' }}
+
+<Row>
+  <Col>
+
+    To protect against brute-force attacks, ZB ID locks an account after repeated failed login attempts.
+
+    - **Threshold:** 5 consecutive failed attempts.
+    - **Lockout duration:** 30 minutes.
+    - **Reset:** The failed-attempt counter resets after a successful login, and the lock clears automatically once the lockout window expires.
+
+    Login attempts are rate limited per identifier (the email or phone submitted), not per source IP address. While an account is locked, login requests for that identity return `403 ACCOUNT_LOCKED` regardless of whether the password is correct.
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      After 5 failed login attempts the account is locked for 30 minutes. Suspended and deactivated accounts also fail login with `403 ACCOUNT_LOCKED`.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## Session management {{ id: 'session-management' }}
+
+<Row>
+  <Col>
+
+    ZB ID limits the number of concurrent active sessions per user account.
+
+    - **Maximum concurrent sessions:** 3.
+    - When a user logs in and already has 3 active sessions, the oldest session is automatically revoked.
+    - Users can view and revoke individual sessions through the [Sessions](/sessions) endpoints, or revoke every session at once with `POST /auth/logout/all`.
+
+    Each session records the channel, IP address, user agent, and the resolved token audience (`clientId`) captured at login.
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'Logout response' }}
+    {
+      "message": "Logged out successfully"
+    }
+    ```
+
+    ```json {{ title: 'Logout all response' }}
+    {
+      "message": "All sessions revoked"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Password management {{ id: 'password-management', tag: 'POST', label: '/auth/password/change' }}
 
 <Row>
   <Col>
@@ -132,11 +375,11 @@ ZB ID supports two authentication models: user authentication with phone and pas
         The user's current password. This is verified before the change is applied.
       </Property>
       <Property name="newPassword" type="string">
-        The new password. Must be at least 8 characters.
+        The new password. Must be between 8 and 128 characters, and different from the current password.
       </Property>
     </Properties>
 
-    After a successful password change, all existing refresh tokens for the user are invalidated. The user must log in again on other devices.
+    After a successful password change, all of the user's active sessions are revoked. The user must log in again on other devices.
 
   </Col>
   <Col sticky>
@@ -145,7 +388,7 @@ ZB ID supports two authentication models: user authentication with phone and pas
 
     ```bash {{ title: 'cURL' }}
     curl -X POST https://zbid-api.lioncapventures.com/auth/password/change \
-      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
       -H "Content-Type: application/json" \
       -d '{
         "currentPassword": "secureP@ss1",
@@ -204,6 +447,92 @@ ZB ID supports two authentication models: user authentication with phone and pas
 
 ---
 
+## Refreshing tokens {{ id: 'refreshing-tokens', tag: 'POST', label: '/auth/token/refresh' }}
+
+<Row>
+  <Col>
+
+    Access tokens are short-lived. When one expires, exchange the refresh token for a fresh access and refresh token pair without asking the user to log in again.
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="refreshToken" type="string">
+        The refresh token from the most recent login or refresh call.
+      </Property>
+    </Properties>
+
+    ZB ID uses **refresh token rotation**. Each refresh issues a new access token and a new refresh token, and the old refresh token is immediately invalidated. If a previously used refresh token is submitted again, every session for that user is revoked as a replay-detection measure. Always store and use the latest refresh token.
+
+    The token audience (`aud`) resolved at login is carried through every rotation, so refreshed tokens keep the same audience without re-validating the client.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/auth/token/refresh">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://zbid-api.lioncapventures.com/auth/token/refresh \
+      -H "Content-Type: application/json" \
+      -d '{
+        "refreshToken": "sT9kQ2mVr8..."
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://zbid-api.lioncapventures.com/auth/token/refresh',
+        headers={'Content-Type': 'application/json'},
+        json={'refreshToken': 'sT9kQ2mVr8...'}
+    )
+
+    data = response.json()
+    new_access_token = data['accessToken']
+    new_refresh_token = data['refreshToken']
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://zbid-api.lioncapventures.com/auth/token/refresh',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: 'sT9kQ2mVr8...' }),
+      }
+    )
+
+    const data = await response.json()
+    const newAccessToken = data.accessToken
+    const newRefreshToken = data.refreshToken
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refreshToken": "b4Xr7pW1nZ...",
+      "tokenType": "Bearer",
+      "expiresIn": 900,
+      "user": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "phone": "+263771234567",
+        "email": "tatenda.moyo@example.com",
+        "firstName": "Tatenda",
+        "lastName": "Moyo",
+        "kycTier": "BASIC",
+        "roles": ["customer"]
+      }
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
 ## OAuth2 client credentials {{ id: 'oauth2-client-credentials' }}
 
 <Row>
@@ -213,17 +542,17 @@ ZB ID supports two authentication models: user authentication with phone and pas
 
     ### How it works
 
-    1. Register an OAuth client through the [OAuth Clients API](/oauth-clients) to receive a `clientId` and `clientSecret`.
-    2. Send a `POST` request to `/oauth/token` with `grant_type=client_credentials`, your `clientId`, and your `clientSecret`.
-    3. The API returns an access token scoped to the permissions assigned to your client.
+    1. Register an OAuth client through the [OAuth Clients API](/oauth-clients) to receive a `client_id` and `client_secret`.
+    2. Send a form-encoded `POST` to `/oauth/token` with `grant_type=client_credentials` and your credentials, either as form fields or via a Basic `Authorization` header.
+    3. The API returns an access token scoped to the permissions granted to your client.
     4. Include the token in the `Authorization: Bearer <token>` header when calling other ZB ID endpoints.
 
     ### When to use client credentials
 
-    - Backend services that need to verify tokens or look up user data
-    - Microservices communicating within the ZB platform
-    - Automated systems (cron jobs, data pipelines) that operate without a user session
-    - Third-party integrations that require API access
+    - Backend services that need to introspect tokens or look up user data.
+    - Microservices communicating within the ZB platform.
+    - Automated systems (cron jobs, data pipelines) that operate without a user session.
+    - Central KYC checks (see the [KYC](/kyc) endpoints).
 
     Client credentials tokens do not carry a user identity. They are associated with the client application itself and carry only the scopes granted to that client.
 
@@ -240,12 +569,11 @@ ZB ID supports two authentication models: user authentication with phone and pas
 
     ```bash {{ title: 'cURL' }}
     curl -X POST https://zbid-api.lioncapventures.com/oauth/token \
-      -H "Content-Type: application/json" \
-      -d '{
-        "grant_type": "client_credentials",
-        "clientId": "my-service-client-id",
-        "clientSecret": "my-service-client-secret"
-      }'
+      -H "Content-Type: application/x-www-form-urlencoded" \
+      -d "grant_type=client_credentials" \
+      -d "client_id=zbid_client_a1b2c3d4e5f6" \
+      -d "client_secret=your_client_secret" \
+      -d "scope=kyc:validate kyc:screen"
     ```
 
     ```python {{ title: 'Python' }}
@@ -253,49 +581,54 @@ ZB ID supports two authentication models: user authentication with phone and pas
 
     response = requests.post(
         'https://zbid-api.lioncapventures.com/oauth/token',
-        headers={'Content-Type': 'application/json'},
-        json={
+        data={
             'grant_type': 'client_credentials',
-            'clientId': 'my-service-client-id',
-            'clientSecret': 'my-service-client-secret',
+            'client_id': 'zbid_client_a1b2c3d4e5f6',
+            'client_secret': 'your_client_secret',
+            'scope': 'kyc:validate kyc:screen',
         }
     )
 
     data = response.json()
-    access_token = data['access_token']
+    access_token = data['accessToken']
     ```
 
     ```javascript {{ title: 'Node.js' }}
+    const params = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: 'zbid_client_a1b2c3d4e5f6',
+      client_secret: 'your_client_secret',
+      scope: 'kyc:validate kyc:screen',
+    })
+
     const response = await fetch(
       'https://zbid-api.lioncapventures.com/oauth/token',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          grant_type: 'client_credentials',
-          clientId: 'my-service-client-id',
-          clientSecret: 'my-service-client-secret',
-        }),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
       }
     )
 
     const data = await response.json()
-    const accessToken = data.access_token
+    const accessToken = data.accessToken
     ```
 
     </CodeGroup>
 
     ```json {{ title: 'Response' }}
     {
-      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.client-token-payload.signature",
-      "token_type": "Bearer",
-      "expires_in": 3600,
-      "scope": "users:read tokens:introspect"
+      "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "tokenType": "Bearer",
+      "expiresIn": 900,
+      "scope": "kyc:validate kyc:screen"
     }
     ```
 
     <Note>
-      Client credentials tokens are short-lived (typically 1 hour). Your service should cache the token and request a new one before it expires. Do not request a new token on every API call.
+      Requested scopes are intersected with the scopes granted to your client, so the returned `scope` can be narrower than what you asked for. Cache the token and request a new one before it expires rather than on every call.
     </Note>
 
   </Col>
@@ -308,38 +641,42 @@ ZB ID supports two authentication models: user authentication with phone and pas
 <Row>
   <Col>
 
-    ZB ID issues JSON Web Tokens (JWTs) for both user authentication and client credentials flows. The token payload differs depending on the authentication method used.
+    ZB ID issues RS256-signed JSON Web Tokens for both flows. The claim set differs depending on how the token was issued.
 
     ### User token claims
 
-    Tokens issued through `POST /auth/login` contain the following claims:
+    Tokens issued through `POST /auth/login`, `POST /auth/register`, and `POST /auth/token/refresh` contain:
 
     | Claim | Type | Description |
     |-------|------|-------------|
-    | `sub` | string | The user's unique identifier (UUID) |
-    | `iss` | string | Token issuer, always `zb-id` |
-    | `exp` | number | Expiration time as a Unix timestamp |
+    | `sub` | string | The user's UUID |
+    | `iss` | string | Token issuer (the ZB ID base URL) |
+    | `aud` | string | Token audience: the `clientId` supplied at login, or `zb-id` by default |
     | `iat` | number | Issued-at time as a Unix timestamp |
+    | `exp` | number | Expiration time as a Unix timestamp |
     | `jti` | string | Unique token identifier for revocation tracking |
-    | `phone` | string | The user's phone number |
-    | `roles` | array | Roles assigned to the user (e.g., `ROLE_USER`, `ROLE_ADMIN`) |
-    | `scopes` | array | Fine-grained permission scopes derived from the user's roles |
-    | `kyc_tier` | number | The user's KYC verification level (0 = unverified, 1 = basic, 2 = full) |
+    | `phone` | string | The user's phone number. Present only when the account has a phone |
+    | `email` | string | The user's email. Present only when the account has an email |
+    | `roles` | array | Roles assigned to the user (for example, `["customer"]`) |
+    | `scopes` | array | Permission scopes derived from the user's roles |
+    | `kyc_tier` | string | The user's KYC tier: `NONE`, `BASIC`, `STANDARD`, or `ENHANCED` |
 
     ### Client token claims
 
-    Tokens issued through `POST /oauth/token` with `grant_type=client_credentials` contain the following claims:
+    Tokens issued through `POST /oauth/token` with `grant_type=client_credentials` contain:
 
     | Claim | Type | Description |
     |-------|------|-------------|
-    | `sub` | string | The client application's unique identifier |
-    | `iss` | string | Token issuer, always `zb-id` |
-    | `exp` | number | Expiration time as a Unix timestamp |
+    | `sub` | string | The OAuth client id |
+    | `iss` | string | Token issuer (the ZB ID base URL) |
     | `iat` | number | Issued-at time as a Unix timestamp |
+    | `exp` | number | Expiration time as a Unix timestamp |
     | `jti` | string | Unique token identifier |
-    | `token_type` | string | Always `client_credentials` for client tokens |
-    | `client_id` | string | The OAuth client ID |
-    | `scopes` | array | Permission scopes granted to the client (e.g., `users:read`, `tokens:introspect`) |
+    | `token_type` | string | Always `client` for client tokens |
+    | `client_id` | string | The OAuth client id |
+    | `scopes` | array | Permission scopes granted to the client |
+
+    Client tokens do not carry an `aud`, `roles`, `kyc_tier`, `phone`, or `email` claim.
 
   </Col>
   <Col sticky>
@@ -347,32 +684,34 @@ ZB ID supports two authentication models: user authentication with phone and pas
     ```json {{ title: 'Decoded user token payload' }}
     {
       "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "iss": "zb-id",
-      "exp": 1717235200,
+      "iss": "https://zbid-api.lioncapventures.com",
+      "aud": "zb-id",
       "iat": 1717148800,
-      "jti": "tok_9f8e7d6c5b4a3210",
+      "exp": 1717149700,
+      "jti": "9f8e7d6c-5b4a-3210-fedc-ba9876543210",
       "phone": "+263771234567",
-      "roles": ["ROLE_USER"],
-      "scopes": ["profile:read", "profile:write"],
-      "kyc_tier": 1
+      "email": "tatenda.moyo@example.com",
+      "roles": ["customer"],
+      "scopes": ["profile:read", "profile:write", "banking:read"],
+      "kyc_tier": "BASIC"
     }
     ```
 
     ```json {{ title: 'Decoded client token payload' }}
     {
-      "sub": "my-service-client-id",
-      "iss": "zb-id",
-      "exp": 1717152400,
+      "sub": "zbid_client_a1b2c3d4e5f6",
+      "iss": "https://zbid-api.lioncapventures.com",
       "iat": 1717148800,
-      "jti": "tok_c1d2e3f4a5b60000",
-      "token_type": "client_credentials",
-      "client_id": "my-service-client-id",
-      "scopes": ["users:read", "tokens:introspect"]
+      "exp": 1717149700,
+      "jti": "c1d2e3f4-a5b6-0000-1111-222233334444",
+      "token_type": "client",
+      "client_id": "zbid_client_a1b2c3d4e5f6",
+      "scopes": ["kyc:validate", "kyc:screen"]
     }
     ```
 
     <Note>
-      Never decode and trust token claims on the client side for authorization decisions. Always validate tokens server-side using the `/tokens/introspect` endpoint or by verifying the JWT signature with the shared secret.
+      Never trust decoded token claims on the client side for authorization decisions. Validate tokens server-side by verifying the JWT signature against the [JWKS](/jwks-discovery) or by calling the [`/oauth/introspect`](/token-introspection) endpoint.
     </Note>
 
   </Col>

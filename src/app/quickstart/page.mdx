@@ -22,25 +22,25 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 <Row>
   <Col>
 
-    Create a new user account by providing a phone number, password, first name, last name, and email address. The phone number must be in E.164 format (for example, `+263771234567`).
+    Create a new user account by providing at least one login channel (a phone number, an email, or both) and a password. First and last name are optional. A phone number must match `^\+?[0-9]{10,15}$` (for example, `+263771234567`).
 
-    ### Required attributes
+    ### Attributes
 
     <Properties>
+      <Property name="email" type="string">
+        The user's email address. Supply this or `phone` (or both).
+      </Property>
       <Property name="phone" type="string">
-        The user's phone number in E.164 format. This will be used as the primary identifier for login.
+        The user's phone number. Supply this or `email` (or both).
       </Property>
       <Property name="password" type="string">
-        A strong password for the account. Must be at least 8 characters.
+        A strong password for the account. Between 8 and 128 characters.
       </Property>
       <Property name="firstName" type="string">
-        The user's first name.
+        Optional. The user's first name.
       </Property>
       <Property name="lastName" type="string">
-        The user's last name.
-      </Property>
-      <Property name="email" type="string">
-        The user's email address.
+        Optional. The user's last name.
       </Property>
     </Properties>
 
@@ -102,16 +102,21 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 
     </CodeGroup>
 
-    ```json {{ title: 'Response' }}
+    ```json {{ title: 'Response (201)' }}
     {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "phone": "+263771234567",
-      "firstName": "Tatenda",
-      "lastName": "Moyo",
-      "email": "tatenda.moyo@example.com",
-      "roles": ["ROLE_USER"],
-      "kycTier": 0,
-      "createdAt": "2026-05-31T10:00:00Z"
+      "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refreshToken": "sT9kQ2mVr8...",
+      "tokenType": "Bearer",
+      "expiresIn": 900,
+      "user": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "phone": "+263771234567",
+        "email": "tatenda.moyo@example.com",
+        "firstName": "Tatenda",
+        "lastName": "Moyo",
+        "kycTier": "NONE",
+        "roles": ["customer"]
+      }
     }
     ```
 
@@ -125,13 +130,16 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 <Row>
   <Col>
 
-    Authenticate with the phone number and password you registered. On success, the API returns an access token and a refresh token. Store both tokens securely; you will need the access token for every authenticated request and the refresh token to obtain new access tokens.
+    Authenticate with either the email or the phone number you registered, plus your password. Email is case-insensitive. On success, the API returns an access token and a refresh token. Store both tokens securely; you will need the access token for every authenticated request and the refresh token to obtain new access tokens.
 
     ### Required attributes
 
     <Properties>
       <Property name="phone" type="string">
-        The phone number used during registration.
+        The phone used during registration. Supply this or `email`.
+      </Property>
+      <Property name="email" type="string">
+        The email used during registration. Supply this or `phone`.
       </Property>
       <Property name="password" type="string">
         The account password.
@@ -191,10 +199,19 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 
     ```json {{ title: 'Response' }}
     {
-      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNC1lNWY2LTc4OTAtYWJjZC1lZjEyMzQ1Njc4OTAiLCJwaG9uZSI6IisyNjM3NzEyMzQ1NjciLCJyb2xlcyI6WyJST0xFX1VTRVIiXSwiaWF0IjoxNzE3MTQ4ODAwLCJleHAiOjE3MTcyMzUyMDB9.signature",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNC1lNWY2LTc4OTAtYWJjZC1lZjEyMzQ1Njc4OTAiLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTcxNzE0ODgwMCwiZXhwIjoxNzE5NzQwODAwfQ.signature",
-      "expiresIn": 86400,
-      "tokenType": "Bearer"
+      "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refreshToken": "sT9kQ2mVr8...",
+      "tokenType": "Bearer",
+      "expiresIn": 900,
+      "user": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "phone": "+263771234567",
+        "email": "tatenda.moyo@example.com",
+        "firstName": "Tatenda",
+        "lastName": "Moyo",
+        "kycTier": "NONE",
+        "roles": ["customer"]
+      }
     }
     ```
 
@@ -262,13 +279,22 @@ This guide walks you through the four steps needed to start using the ZB ID API:
     {
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "phone": "+263771234567",
+      "email": "tatenda.moyo@example.com",
       "firstName": "Tatenda",
       "lastName": "Moyo",
-      "email": "tatenda.moyo@example.com",
-      "roles": ["ROLE_USER"],
-      "kycTier": 0,
-      "createdAt": "2026-05-31T10:00:00Z",
-      "lastLoginAt": "2026-05-31T10:05:00Z"
+      "kycTier": "NONE",
+      "status": "ACTIVE",
+      "roles": [
+        {
+          "id": "a0000000-0000-0000-0000-000000000001",
+          "name": "customer",
+          "description": "Standard retail customer",
+          "subsidiaryScope": null
+        }
+      ],
+      "createdAt": "2026-07-10T10:00:00Z",
+      "emailVerifiedAt": null,
+      "phoneVerifiedAt": null
     }
     ```
 
@@ -346,10 +372,19 @@ This guide walks you through the four steps needed to start using the ZB ID API:
 
     ```json {{ title: 'Response' }}
     {
-      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new-access-token-payload.signature",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new-refresh-token-payload.signature",
-      "expiresIn": 86400,
-      "tokenType": "Bearer"
+      "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refreshToken": "b4Xr7pW1nZ...",
+      "tokenType": "Bearer",
+      "expiresIn": 900,
+      "user": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "phone": "+263771234567",
+        "email": "tatenda.moyo@example.com",
+        "firstName": "Tatenda",
+        "lastName": "Moyo",
+        "kycTier": "NONE",
+        "roles": ["customer"]
+      }
     }
     ```
 
