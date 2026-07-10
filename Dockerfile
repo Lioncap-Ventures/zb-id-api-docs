@@ -7,8 +7,8 @@ WORKDIR /app
 ENV NEXT_PUBLIC_BRAND_NAME="ZB ID"
 ENV NEXT_PUBLIC_BRAND_URL=zbid-docs.lioncapventures.com
 ENV NEXT_PUBLIC_BRAND_DESCRIPTION="Unified identity and authentication service for ZB Financial Holdings"
-ENV NEXT_PUBLIC_CONTACT_EMAIL=tech@lioncapventures.com
-ENV NEXT_PUBLIC_SUPPORT_EMAIL=tech@lioncapventures.com
+ENV NEXT_PUBLIC_CONTACT_EMAIL=techsupport@lioncapventures.com
+ENV NEXT_PUBLIC_SUPPORT_EMAIL=techsupport@lioncapventures.com
 # Copy package.json to the working directory
 COPY package*.json pnpm-lock.yaml .npmrc ./
 
