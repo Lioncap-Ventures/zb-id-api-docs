@@ -1,0 +1,813 @@
+export const metadata = {
+  title: 'KYC Verification',
+  description:
+    'Central KYC endpoints for national ID validation, credit checks, and AML watchlist screening. Called service-to-service with client credentials tokens.',
+}
+
+export const sections = [
+  { title: 'Overview', id: 'overview' },
+  { title: 'The verification object', id: 'the-verification-object' },
+  { title: 'Validate a national ID', id: 'validate-a-national-id' },
+  { title: 'Run a credit check', id: 'run-a-credit-check' },
+  { title: 'Screen an individual', id: 'screen-an-individual' },
+  { title: 'Screen an organisation', id: 'screen-an-organisation' },
+  { title: 'Retrieve screening results', id: 'retrieve-screening-results' },
+  { title: 'Fetch the screening toolkit', id: 'fetch-the-screening-toolkit' },
+]
+
+# KYC Verification
+
+ZB ID provides a central KYC module that other ZB services call to validate national IDs against the e-Gov registry, run FCB credit bureau searches, and screen individuals and organisations against World-Check AML watchlists. Every verification is persisted as an auditable record. {{ className: 'lead' }}
+
+<Note>
+  All KYC endpoints are service-to-service. Call them with a **client credentials** Bearer token that carries the required scope for the endpoint. See [OAuth2 client credentials](/authentication#oauth2-client-credentials) for how to obtain one, and [Roles & Permissions](/roles-permissions#permissions) for the KYC scopes.
+</Note>
+
+---
+
+## Overview {{ id: 'overview' }}
+
+<Row>
+  <Col>
+
+    The KYC endpoints live under `/v1/kyc`. Each one requires a specific scope on the calling client's token:
+
+    | Endpoint | Method | Scope |
+    |----------|--------|-------|
+    | `/v1/kyc/validate-id` | POST | `kyc:validate` |
+    | `/v1/kyc/credit-check` | POST | `kyc:credit-check` |
+    | `/v1/kyc/screen-individual` | POST | `kyc:screen` |
+    | `/v1/kyc/screen-corporate` | POST | `kyc:screen` |
+    | `/v1/kyc/screen-result` | POST | `kyc:screen` |
+    | `/v1/kyc/screen-toolkit` | GET | `kyc:screen` |
+
+    Two behaviours reduce duplicate provider calls:
+
+    - **National ID validation is cached** for 30 days per national ID. A repeat validation within that window returns the stored record with `cacheHit: true`.
+    - **Watchlist screening is deduplicated.** An individual is matched by national ID or by a normalized `fullName` plus date of birth; an organisation by its normalized name. A matching prior case is reused with `cacheHit: true` instead of opening a new one.
+
+    Credit checks are never cached; each request calls the bureau fresh.
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      In non-production environments the upstream providers are stubbed, so these endpoints return deterministic sample data without contacting the real registries. Behaviour, request shapes, and response shapes are identical to production.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## The verification object {{ id: 'the-verification-object' }}
+
+<Row>
+  <Col>
+
+    Most KYC endpoints return a verification object describing the persisted record.
+
+    <Properties>
+      <Property name="id" type="string (UUID)">
+        Unique identifier for this verification record.
+      </Property>
+      <Property name="userId" type="string (UUID) | null">
+        The linked user, if one was supplied. `null` for pre-registration checks.
+      </Property>
+      <Property name="nationalId" type="string | null">
+        The national ID for individuals, or the normalized identity key used for watchlist deduplication.
+      </Property>
+      <Property name="type" type="string">
+        One of `EGOV`, `FCB`, or `WORLDCHECK`.
+      </Property>
+      <Property name="status" type="string">
+        One of `PENDING`, `VERIFIED`, `REJECTED`, `COMPLETED`, or `FAILED`.
+      </Property>
+      <Property name="statusReason" type="string | null">
+        A human-readable reason when the verification was rejected or failed.
+      </Property>
+      <Property name="externalRef" type="string | null">
+        The provider's reference for a watchlist case, when one exists.
+      </Property>
+      <Property name="cacheHit" type="boolean">
+        `true` when the record was served from cache or reused via deduplication rather than a fresh provider call.
+      </Property>
+      <Property name="requestSnapshot" type="object | null">
+        The request payload sent to the provider, minus any injected credentials.
+      </Property>
+      <Property name="responsePayload" type="object | null">
+        The provider's response, as stored.
+      </Property>
+      <Property name="createdAt" type="string (ISO 8601)">
+        When the record was created.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'Verification object' }}
+    {
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "nationalId": "63-123456A78",
+      "type": "EGOV",
+      "status": "VERIFIED",
+      "statusReason": null,
+      "externalRef": null,
+      "cacheHit": false,
+      "requestSnapshot": {
+        "nationalId": "63-123456A78"
+      },
+      "responsePayload": {
+        "Status": "A"
+      },
+      "createdAt": "2026-07-10T09:12:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Validate a national ID {{ id: 'validate-a-national-id', tag: 'POST', label: '/v1/kyc/validate-id' }}
+
+<Row>
+  <Col>
+
+    Validate a national ID against the e-Gov registry. Requires the **kyc:validate** scope. Results are cached for 30 days per national ID. When the ID is active and the linked user is currently at KYC tier `NONE`, the user's tier is raised to `BASIC`.
+
+    ### Request body
+
+    <Properties>
+      <Property name="nationalId" type="string">
+        The national ID to validate. Up to 20 characters.
+      </Property>
+      <Property name="userId" type="string (UUID)">
+        Optional. Link this verification to an existing user so a successful check can raise their KYC tier.
+      </Property>
+    </Properties>
+
+    An active ID returns `status: "VERIFIED"`. An ID belonging to a deceased person, or one that is not active in the registry, returns `status: "REJECTED"` with a `statusReason`.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/v1/kyc/validate-id">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://zbid-api.lioncapventures.com/v1/kyc/validate-id \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nationalId": "63-123456A78",
+        "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://zbid-api.lioncapventures.com/v1/kyc/validate-id',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'nationalId': '63-123456A78',
+            'userId': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        }
+    )
+
+    verification = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://zbid-api.lioncapventures.com/v1/kyc/validate-id',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nationalId: '63-123456A78',
+          userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        }),
+      }
+    )
+
+    const verification = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "nationalId": "63-123456A78",
+      "type": "EGOV",
+      "status": "VERIFIED",
+      "statusReason": null,
+      "externalRef": null,
+      "cacheHit": false,
+      "requestSnapshot": { "nationalId": "63-123456A78" },
+      "responsePayload": { "Status": "A" },
+      "createdAt": "2026-07-10T09:12:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Run a credit check {{ id: 'run-a-credit-check', tag: 'POST', label: '/v1/kyc/credit-check' }}
+
+<Row>
+  <Col>
+
+    Run an FCB credit bureau search. Requires the **kyc:credit-check** scope. This endpoint always calls the bureau fresh; results are never cached. Bureau credentials are injected server-side and are never part of the request or the stored snapshot.
+
+    ### Request body
+
+    <Properties>
+      <Property name="dob" type="string">
+        Date of birth, `YYYY-MM-DD`.
+      </Property>
+      <Property name="names" type="string">
+        The subject's given names.
+      </Property>
+      <Property name="surname" type="string">
+        The subject's surname.
+      </Property>
+      <Property name="nationalId" type="string">
+        National ID, up to 20 characters.
+      </Property>
+      <Property name="gender" type="string">
+        `M` or `F`.
+      </Property>
+      <Property name="searchPurpose" type="string">
+        The reason for the search.
+      </Property>
+      <Property name="married" type="string">
+        Marital status.
+      </Property>
+      <Property name="nationality" type="string">
+        Nationality.
+      </Property>
+      <Property name="streetno" type="string">
+        Street number.
+      </Property>
+      <Property name="streetname" type="string">
+        Street name.
+      </Property>
+      <Property name="suburb" type="string">
+        Suburb.
+      </Property>
+      <Property name="city" type="string">
+        City.
+      </Property>
+      <Property name="mobile" type="string">
+        Mobile number.
+      </Property>
+      <Property name="propertyDensity" type="string">
+        Property density.
+      </Property>
+      <Property name="propertyStatus" type="string">
+        Property status.
+      </Property>
+      <Property name="occupationClass" type="string">
+        Occupation class.
+      </Property>
+      <Property name="employer" type="string">
+        Employer.
+      </Property>
+      <Property name="employerIndustry" type="string">
+        Employer industry.
+      </Property>
+      <Property name="salaryBand" type="string">
+        Salary band.
+      </Property>
+      <Property name="loanPurpose" type="string">
+        Loan purpose.
+      </Property>
+      <Property name="loanAmount" type="string">
+        Loan amount.
+      </Property>
+      <Property name="driversLicence" type="string">
+        Optional. Driver's licence number.
+      </Property>
+      <Property name="passport" type="string">
+        Optional. Passport number.
+      </Property>
+      <Property name="building" type="string">
+        Optional. Building name.
+      </Property>
+      <Property name="pbag" type="string">
+        Optional. Private bag.
+      </Property>
+      <Property name="telephone" type="string">
+        Optional. Landline number.
+      </Property>
+      <Property name="indEmail" type="string">
+        Optional. The subject's email address.
+      </Property>
+      <Property name="userId" type="string (UUID)">
+        Optional. Link the verification to an existing user.
+      </Property>
+    </Properties>
+
+    A successful bureau response returns `status: "COMPLETED"`; any other bureau code, or a provider error, returns `status: "FAILED"`.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/v1/kyc/credit-check">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://zbid-api.lioncapventures.com/v1/kyc/credit-check \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "dob": "1990-01-15",
+        "names": "John",
+        "surname": "Moyo",
+        "nationalId": "63-123456A78",
+        "gender": "M",
+        "searchPurpose": "1",
+        "married": "1",
+        "nationality": "1",
+        "streetno": "12",
+        "streetname": "Samora Machel Ave",
+        "suburb": "Avondale",
+        "city": "Harare",
+        "mobile": "+263771234567",
+        "propertyDensity": "1",
+        "propertyStatus": "1",
+        "occupationClass": "1",
+        "employer": "Example Ltd",
+        "employerIndustry": "1",
+        "salaryBand": "3",
+        "loanPurpose": "1",
+        "loanAmount": "5000"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://zbid-api.lioncapventures.com/v1/kyc/credit-check',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'dob': '1990-01-15',
+            'names': 'John',
+            'surname': 'Moyo',
+            'nationalId': '63-123456A78',
+            'gender': 'M',
+            'searchPurpose': '1',
+            'married': '1',
+            'nationality': '1',
+            'streetno': '12',
+            'streetname': 'Samora Machel Ave',
+            'suburb': 'Avondale',
+            'city': 'Harare',
+            'mobile': '+263771234567',
+            'propertyDensity': '1',
+            'propertyStatus': '1',
+            'occupationClass': '1',
+            'employer': 'Example Ltd',
+            'employerIndustry': '1',
+            'salaryBand': '3',
+            'loanPurpose': '1',
+            'loanAmount': '5000',
+        }
+    )
+
+    verification = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://zbid-api.lioncapventures.com/v1/kyc/credit-check',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dob: '1990-01-15',
+          names: 'John',
+          surname: 'Moyo',
+          nationalId: '63-123456A78',
+          gender: 'M',
+          searchPurpose: '1',
+          married: '1',
+          nationality: '1',
+          streetno: '12',
+          streetname: 'Samora Machel Ave',
+          suburb: 'Avondale',
+          city: 'Harare',
+          mobile: '+263771234567',
+          propertyDensity: '1',
+          propertyStatus: '1',
+          occupationClass: '1',
+          employer: 'Example Ltd',
+          employerIndustry: '1',
+          salaryBand: '3',
+          loanPurpose: '1',
+          loanAmount: '5000',
+        }),
+      }
+    )
+
+    const verification = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "0d3f5a9e-1c22-4b7a-9d2e-7a6f8b1c2d34",
+      "userId": null,
+      "nationalId": "63-123456A78",
+      "type": "FCB",
+      "status": "COMPLETED",
+      "statusReason": null,
+      "externalRef": null,
+      "cacheHit": false,
+      "createdAt": "2026-07-10T09:20:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Screen an individual {{ id: 'screen-an-individual', tag: 'POST', label: '/v1/kyc/screen-individual' }}
+
+<Row>
+  <Col>
+
+    Open a World-Check AML screening case for an individual. Requires the **kyc:screen** scope. If a case already exists for the same national ID, or the same normalized `fullName` plus date of birth, that case is reused (`cacheHit: true`).
+
+    ### Request body
+
+    <Properties>
+      <Property name="fullName" type="string">
+        The person's full name. Up to 80 characters.
+      </Property>
+      <Property name="dateOfBirth" type="string">
+        Date of birth, `YYYY-MM-DD`.
+      </Property>
+      <Property name="gender" type="string">
+        `MALE` or `FEMALE`.
+      </Property>
+      <Property name="nationality" type="string">
+        ISO 3166-1 alpha-2 country code (for example, `ZW`).
+      </Property>
+      <Property name="nationalId" type="string">
+        Optional. National ID, up to 20 characters. Improves deduplication.
+      </Property>
+      <Property name="userId" type="string (UUID)">
+        Optional. Link the verification to an existing user.
+      </Property>
+    </Properties>
+
+    A newly opened case is returned with `status: "PENDING"` while screening results are resolved.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/v1/kyc/screen-individual">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://zbid-api.lioncapventures.com/v1/kyc/screen-individual \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "fullName": "John Moyo",
+        "dateOfBirth": "1990-01-15",
+        "gender": "MALE",
+        "nationality": "ZW",
+        "nationalId": "63-123456A78"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://zbid-api.lioncapventures.com/v1/kyc/screen-individual',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'fullName': 'John Moyo',
+            'dateOfBirth': '1990-01-15',
+            'gender': 'MALE',
+            'nationality': 'ZW',
+            'nationalId': '63-123456A78',
+        }
+    )
+
+    verification = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://zbid-api.lioncapventures.com/v1/kyc/screen-individual',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: 'John Moyo',
+          dateOfBirth: '1990-01-15',
+          gender: 'MALE',
+          nationality: 'ZW',
+          nationalId: '63-123456A78',
+        }),
+      }
+    )
+
+    const verification = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "b2d1a7f0-3c44-4e91-8f2a-1b9c6d5e4a30",
+      "userId": null,
+      "nationalId": "63-123456A78",
+      "type": "WORLDCHECK",
+      "status": "PENDING",
+      "statusReason": null,
+      "externalRef": "3d9c1a8b7e6f5d4c3b2a1908f",
+      "cacheHit": false,
+      "createdAt": "2026-07-10T09:30:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Screen an organisation {{ id: 'screen-an-organisation', tag: 'POST', label: '/v1/kyc/screen-corporate' }}
+
+<Row>
+  <Col>
+
+    Open a World-Check AML screening case for an organisation. Requires the **kyc:screen** scope. Cases are deduplicated by the normalized organisation name; a matching prior case is reused (`cacheHit: true`).
+
+    ### Request body
+
+    <Properties>
+      <Property name="fullName" type="string">
+        The organisation's name. Up to 80 characters.
+      </Property>
+      <Property name="nationality" type="string">
+        ISO 3166-1 alpha-2 country code (for example, `ZW`).
+      </Property>
+      <Property name="userId" type="string (UUID)">
+        Optional. Link the verification to an existing user.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/v1/kyc/screen-corporate">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://zbid-api.lioncapventures.com/v1/kyc/screen-corporate \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "fullName": "Example Holdings Ltd",
+        "nationality": "ZW"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://zbid-api.lioncapventures.com/v1/kyc/screen-corporate',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'fullName': 'Example Holdings Ltd',
+            'nationality': 'ZW',
+        }
+    )
+
+    verification = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://zbid-api.lioncapventures.com/v1/kyc/screen-corporate',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: 'Example Holdings Ltd',
+          nationality: 'ZW',
+        }),
+      }
+    )
+
+    const verification = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "id": "f4a2c6b8-9d10-4e23-8a71-2c3d4e5f6a70",
+      "userId": null,
+      "nationalId": "example holdings ltd",
+      "type": "WORLDCHECK",
+      "status": "PENDING",
+      "statusReason": null,
+      "externalRef": "9a8b7c6d5e4f3a2b1c0d9e8f7",
+      "cacheHit": false,
+      "createdAt": "2026-07-10T09:35:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Retrieve screening results {{ id: 'retrieve-screening-results', tag: 'POST', label: '/v1/kyc/screen-result' }}
+
+<Row>
+  <Col>
+
+    Fetch the stored screening results for a World-Check case. Requires the **kyc:screen** scope. Returns the raw World-Check result map keyed by `caseSystemId`.
+
+    ### Request body
+
+    <Properties>
+      <Property name="caseSystemId" type="string">
+        The World-Check case system id whose results you want to read.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/v1/kyc/screen-result">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://zbid-api.lioncapventures.com/v1/kyc/screen-result \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "caseSystemId": "3d9c1a8b7e6f5d4c3b2a1908f"
+      }'
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.post(
+        'https://zbid-api.lioncapventures.com/v1/kyc/screen-result',
+        headers={
+            'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+            'Content-Type': 'application/json',
+        },
+        json={'caseSystemId': '3d9c1a8b7e6f5d4c3b2a1908f'}
+    )
+
+    results = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://zbid-api.lioncapventures.com/v1/kyc/screen-result',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          caseSystemId: '3d9c1a8b7e6f5d4c3b2a1908f',
+        }),
+      }
+    )
+
+    const results = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "caseSystemId": "3d9c1a8b7e6f5d4c3b2a1908f",
+      "results": [],
+      "resolution": null
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Fetch the screening toolkit {{ id: 'fetch-the-screening-toolkit', tag: 'GET', label: '/v1/kyc/screen-toolkit' }}
+
+<Row>
+  <Col>
+
+    Fetch the World-Check resolution toolkit: the statuses, risks, and reasons available when resolving a case. Requires the **kyc:screen** scope. Use the returned ids when recording a resolution decision.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="GET" label="/v1/kyc/screen-toolkit">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://zbid-api.lioncapventures.com/v1/kyc/screen-toolkit \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+    ```
+
+    ```python {{ title: 'Python' }}
+    import requests
+
+    response = requests.get(
+        'https://zbid-api.lioncapventures.com/v1/kyc/screen-toolkit',
+        headers={'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...'}
+    )
+
+    toolkit = response.json()
+    ```
+
+    ```javascript {{ title: 'Node.js' }}
+    const response = await fetch(
+      'https://zbid-api.lioncapventures.com/v1/kyc/screen-toolkit',
+      {
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIs...',
+        },
+      }
+    )
+
+    const toolkit = await response.json()
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "statuses": [
+        { "id": "st-positive", "name": "POSITIVE" },
+        { "id": "st-possible", "name": "POSSIBLE" },
+        { "id": "st-false", "name": "FALSE" },
+        { "id": "st-unspecified", "name": "UNSPECIFIED" }
+      ],
+      "risks": [
+        { "id": "rk-high", "name": "HIGH" },
+        { "id": "rk-medium", "name": "MEDIUM" },
+        { "id": "rk-low", "name": "LOW" },
+        { "id": "rk-unknown", "name": "UNKNOWN" }
+      ],
+      "reasons": [
+        { "id": "rs-full", "name": "FULL_MATCH" },
+        { "id": "rs-partial", "name": "PARTIAL_MATCH" },
+        { "id": "rs-no", "name": "NO_MATCH" },
+        { "id": "rs-unknown", "name": "UNKNOWN" }
+      ]
+    }
+    ```
+
+    <Note>
+      The exact status, risk, and reason ids come from the live toolkit. Fetch them at runtime rather than hard-coding the values shown here.
+    </Note>
+
+  </Col>
+</Row>

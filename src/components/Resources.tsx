@@ -80,6 +80,20 @@ const resources: Array<Resource> = [
       squares: [[0, 1]],
     },
   },
+  {
+    href: '/kyc',
+    name: 'KYC Verification',
+    description:
+      'Validate national IDs, run credit checks, and screen against AML watchlists.',
+    icon: BookIcon,
+    pattern: {
+      y: 16,
+      squares: [
+        [0, 1],
+        [1, 3],
+      ],
+    },
+  },
 ]
 
 function ResourceIcon({ icon: Icon }: { icon: Resource['icon'] }) {

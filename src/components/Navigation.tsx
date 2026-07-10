@@ -249,6 +249,7 @@ export const navigation: Array<NavGroup> = [
       { title: 'Users', href: '/users' },
       { title: 'Sessions', href: '/sessions' },
       { title: 'Roles & Permissions', href: '/roles-permissions' },
+      { title: 'KYC Verification', href: '/kyc' },
       { title: 'Token Introspection', href: '/token-introspection' },
       { title: 'JWKS & Discovery', href: '/jwks-discovery' },
       { title: 'Webhooks', href: '/webhooks' },

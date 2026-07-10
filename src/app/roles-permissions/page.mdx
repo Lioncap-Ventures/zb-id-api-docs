@@ -56,15 +56,16 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
 <Row>
   <Col>
 
-    ZB ID ships with five default roles. Each role comes pre-configured with a set of permissions appropriate for its intended use case.
+    ZB ID ships with six default roles. Each role comes pre-configured with a set of permissions appropriate for its intended use case.
 
     | Role | Description |
     |------|-------------|
-    | **customer** | End users of ZB digital products. Granted read access to their own profile, banking, lending, insurance, and wealth data. |
-    | **merchant** | Business operators who accept payments or provide services through ZB platforms. Includes customer permissions plus write access to banking and profile resources. |
-    | **staff** | Internal ZB employees who manage day-to-day operations. Includes broad read/write access across all product lines. |
+    | **customer** | End users of ZB digital products. Granted read and write access to their own profile, banking, lending, insurance, and wealth data. |
+    | **merchant** | Business operators who accept payments or provide services through ZB platforms. Includes banking read/write, lending read, and profile permissions. |
+    | **staff** | Internal ZB employees who manage day-to-day operations. Includes read access across product lines plus user management and KYC review. |
     | **admin** | System administrators with full access, including user management, role assignment, KYC administration, audit logs, and platform configuration. |
-    | **auditor** | Compliance and audit personnel with read-only access across all product lines plus access to audit logs. Cannot modify data or manage users. |
+    | **auditor** | Compliance and audit personnel with read-only access across product lines plus access to audit logs. Cannot modify data or manage users. |
+    | **driver** | Delivery drivers. Granted `profile:read` and `profile:write` only. |
 
     Custom roles can be created through the admin interface or the API to support more specialized access patterns.
 
@@ -142,6 +143,22 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
       </Property>
       <Property name="admin:clients" type="scope">
         Manage OAuth client applications: register, update, or revoke clients.
+      </Property>
+    </Properties>
+
+    ### KYC permissions
+
+    These scopes are granted to OAuth clients (via the client credentials grant) that call the [central KYC endpoints](/kyc).
+
+    <Properties>
+      <Property name="kyc:validate" type="scope">
+        Validate national IDs against the e-Gov registry.
+      </Property>
+      <Property name="kyc:credit-check" type="scope">
+        Run FCB credit bureau searches.
+      </Property>
+      <Property name="kyc:screen" type="scope">
+        Run World-Check AML screening and read KYC verifications.
       </Property>
     </Properties>
 
@@ -294,7 +311,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
 
     <Properties>
       <Property name="roleName" type="string">
-        The name of the role to assign (e.g., `customer`, `merchant`, `staff`, `admin`, `auditor`, or a custom role name).
+        The name of the role to assign (e.g., `customer`, `merchant`, `staff`, `admin`, `auditor`, `driver`, or a custom role name).
       </Property>
       <Property name="subsidiaryScope" type="string">
         Optional. Limits the role to a specific ZB subsidiary (e.g., `zb-bank`, `zb-life`, `zb-reinsurance`). When omitted, the role applies across all subsidiaries.
