@@ -65,9 +65,9 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     curl -X POST https://zbid-api.lioncapventures.com/oauth/token \
       -H "Content-Type: application/x-www-form-urlencoded" \
       -d "grant_type=client_credentials" \
-      -d "client_id=your_client_id" \
+      -d "client_id=zbid_client_a1b2c3d4e5f6" \
       -d "client_secret=your_client_secret" \
-      -d "scope=users:read users:write"
+      -d "scope=kyc:validate kyc:screen"
 
     # Using Basic auth
     curl -X POST https://zbid-api.lioncapventures.com/oauth/token \
@@ -84,9 +84,9 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
         'https://zbid-api.lioncapventures.com/oauth/token',
         data={
             'grant_type': 'client_credentials',
-            'client_id': 'your_client_id',
+            'client_id': 'zbid_client_a1b2c3d4e5f6',
             'client_secret': 'your_client_secret',
-            'scope': 'users:read users:write',
+            'scope': 'kyc:validate kyc:screen',
         }
     )
 
@@ -97,9 +97,9 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     ```javascript {{ title: 'Node.js' }}
     const params = new URLSearchParams({
       grant_type: 'client_credentials',
-      client_id: 'your_client_id',
+      client_id: 'zbid_client_a1b2c3d4e5f6',
       client_secret: 'your_client_secret',
-      scope: 'users:read users:write',
+      scope: 'kyc:validate kyc:screen',
     })
 
     const response = await fetch(
@@ -123,8 +123,8 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     {
       "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
       "tokenType": "Bearer",
-      "expiresIn": 3600,
-      "scope": "users:read users:write"
+      "expiresIn": 900,
+      "scope": "kyc:validate kyc:screen"
     }
     ```
 
@@ -147,9 +147,11 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
         A human-readable name for the client (e.g., "Payment Gateway Service").
       </Property>
       <Property name="scopes" type="array">
-        List of permission scopes granted to this client (e.g., `["users:read", "users:write"]`).
+        List of permission scopes granted to this client (e.g., `["kyc:validate", "kyc:screen"]`).
       </Property>
     </Properties>
+
+    New clients are created with the `client_credentials` grant type.
 
   </Col>
   <Col sticky>
@@ -161,8 +163,8 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
       -H "Content-Type: application/json" \
       -d '{
-        "name": "Payment Gateway Service",
-        "scopes": ["users:read", "users:write"]
+        "name": "Central KYC Service",
+        "scopes": ["kyc:validate", "kyc:screen"]
       }'
     ```
 
@@ -176,8 +178,8 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
             'Content-Type': 'application/json',
         },
         json={
-            'name': 'Payment Gateway Service',
-            'scopes': ['users:read', 'users:write'],
+            'name': 'Central KYC Service',
+            'scopes': ['kyc:validate', 'kyc:screen'],
         }
     )
 
@@ -195,8 +197,8 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: 'Payment Gateway Service',
-          scopes: ['users:read', 'users:write'],
+          name: 'Central KYC Service',
+          scopes: ['kyc:validate', 'kyc:screen'],
         }),
       }
     )
@@ -210,13 +212,14 @@ OAuth2 clients enable machine-to-machine authentication using the client credent
     ```json {{ title: 'Response' }}
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "Payment Gateway Service",
       "clientId": "zbid_client_a1b2c3d4e5f6",
       "clientSecret": "zbid_secret_x9y8z7w6v5u4t3s2r1q0",
-      "scopes": ["users:read", "users:write"],
+      "name": "Central KYC Service",
+      "scopes": ["kyc:validate", "kyc:screen"],
+      "grantTypes": ["client_credentials"],
       "status": "ACTIVE",
       "rateLimitPerMinute": 60,
-      "createdAt": "2026-05-31T10:00:00Z"
+      "createdAt": "2026-07-10T10:00:00Z"
     }
     ```
 

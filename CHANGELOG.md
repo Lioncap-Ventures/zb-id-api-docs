@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-10
+
+- Document dual-channel identity: register and log in with an email, a phone, or both, with email lookups case-insensitive
+- Document the optional `clientId` on login and register, and the resulting JWT `aud` (audience) claim carried through refresh rotation
+- Rewrite the user JWT claim table (`sub`, `iss`, `aud`, `iat`, `exp`, `jti`, `phone`, `email`, `roles`, `scopes`, `kyc_tier`) and correct client tokens to use `token_type: "client"`
+- Update the Users page for nullable `phone`, the `emailVerifiedAt` and `phoneVerifiedAt` stamps, and the full `PATCH /users/me` channel semantics including all four error cases
+- Update Token Introspection for the new `aud`, `email`, and `phone` fields, absent `tokenType` on user tokens, and separate user and client token examples
+- Add the `driver` role and the `kyc:validate`, `kyc:credit-check`, and `kyc:screen` scopes to Roles & Permissions
+- Add a new KYC Verification page documenting the six `/v1/kyc` endpoints, and link it from the navigation and home page
+- Correct the error codes to match the API (`INVALID_CREDENTIALS`, `RATE_LIMIT_EXCEEDED`, `VALIDATION_ERROR`) and refresh the Quickstart, OAuth Clients, and Discovery examples
+
 ## 2025-07-29
 
 - Update to React 19 and Next.js 15.4

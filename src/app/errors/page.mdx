@@ -37,18 +37,18 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
     ```json {{ title: 'Error response envelope' }}
     {
       "error": "BAD_REQUEST",
-      "message": "Phone number is required and must be in E.164 format",
+      "message": "Either an email or a phone number is required",
       "status": 400,
-      "timestamp": "2026-05-31T10:15:30.123Z"
+      "timestamp": "2026-07-10T10:15:30.123Z"
     }
     ```
 
     ```json {{ title: 'Authentication error' }}
     {
-      "error": "UNAUTHORIZED",
-      "message": "Invalid or expired access token",
+      "error": "INVALID_CREDENTIALS",
+      "message": "Invalid credentials",
       "status": 401,
-      "timestamp": "2026-05-31T10:16:45.456Z"
+      "timestamp": "2026-07-10T10:16:45.456Z"
     }
     ```
 
@@ -65,26 +65,26 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
     The `error` field in each response maps to one of the following machine-readable error codes. Use these codes to implement specific handling logic in your application.
 
     <Properties>
-      <Property name="UNAUTHORIZED" type="401">
-        The request lacks valid authentication credentials. Either no token was provided or the token has expired.
-      </Property>
       <Property name="INVALID_CREDENTIALS" type="401">
-        The phone number or OTP provided during login is incorrect.
-      </Property>
-      <Property name="FORBIDDEN" type="403">
-        The authenticated user does not have permission to perform the requested action.
+        The email or phone and password combination is incorrect, or a refresh token is invalid or expired.
       </Property>
       <Property name="ACCOUNT_LOCKED" type="403">
-        The user account has been locked due to too many failed login attempts or administrative action.
+        The account is locked (too many failed login attempts), suspended, or deactivated.
+      </Property>
+      <Property name="FORBIDDEN" type="403">
+        The token lacks the scope required for the requested action.
       </Property>
       <Property name="BAD_REQUEST" type="400">
-        The request body is malformed, missing required fields, or contains invalid values.
+        The request is malformed, missing required fields, or contains invalid values.
+      </Property>
+      <Property name="VALIDATION_ERROR" type="400">
+        One or more request fields failed validation. The `message` lists each failing field and why.
       </Property>
       <Property name="CONFLICT" type="409">
-        The request conflicts with the current state of the resource (e.g., attempting to register a phone number that already exists).
+        The request conflicts with existing data (for example, registering an email or phone that already exists, or claiming an identifier owned by another account).
       </Property>
-      <Property name="TOO_MANY_REQUESTS" type="429">
-        Rate limit exceeded. Back off and retry after the period specified in the response.
+      <Property name="RATE_LIMIT_EXCEEDED" type="429">
+        Rate limit exceeded. Back off and retry later.
       </Property>
       <Property name="INTERNAL_ERROR" type="500">
         An unexpected error occurred on the server. If this persists, contact support.
@@ -101,18 +101,18 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
     ```json {{ title: 'Account locked example' }}
     {
       "error": "ACCOUNT_LOCKED",
-      "message": "Account locked due to repeated failed login attempts. Try again later.",
+      "message": "Account is locked",
       "status": 403,
-      "timestamp": "2026-05-31T10:20:00.789Z"
+      "timestamp": "2026-07-10T10:20:00.789Z"
     }
     ```
 
     ```json {{ title: 'Conflict example' }}
     {
       "error": "CONFLICT",
-      "message": "A user with this phone number already exists",
+      "message": "Phone number already registered, log in with that phone instead",
       "status": 409,
-      "timestamp": "2026-05-31T10:21:00.321Z"
+      "timestamp": "2026-07-10T10:21:00.321Z"
     }
     ```
 
@@ -208,10 +208,10 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
 
     ```json {{ title: 'Validation error example' }}
     {
-      "error": "BAD_REQUEST",
-      "message": "Validation failed: phone must be a valid E.164 phone number",
+      "error": "VALIDATION_ERROR",
+      "message": "phone: Invalid phone number format; password: Password is required",
       "status": 400,
-      "timestamp": "2026-05-31T10:25:00.555Z"
+      "timestamp": "2026-07-10T10:25:00.555Z"
     }
     ```
 
@@ -232,7 +232,7 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
 
     response = requests.post(
         'https://zbid-api.lioncapventures.com/auth/login',
-        json={'phone': '+263771234567', 'otp': '123456'}
+        json={'phone': '+263771234567', 'password': 'secureP@ss1'}
     )
 
     if response.status_code == 400:
@@ -261,7 +261,7 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: '+263771234567',
-          otp: '123456',
+          password: 'secureP@ss1',
         }),
       }
     )
@@ -271,16 +271,16 @@ The ZB ID API uses conventional HTTP status codes and a consistent error respons
 
       switch (error.error) {
         case 'BAD_REQUEST':
+        case 'VALIDATION_ERROR':
           console.error('Validation error:', error.message)
           break
-        case 'UNAUTHORIZED':
         case 'INVALID_CREDENTIALS':
           console.error('Authentication failed:', error.message)
           break
         case 'ACCOUNT_LOCKED':
           console.error('Account locked:', error.message)
           break
-        case 'TOO_MANY_REQUESTS':
+        case 'RATE_LIMIT_EXCEEDED':
           console.error('Rate limited. Retry later.')
           break
         default:

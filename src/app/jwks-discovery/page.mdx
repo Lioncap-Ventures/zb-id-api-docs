@@ -124,10 +124,7 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
         URL for validating and inspecting tokens.
       </Property>
       <Property name="grant_types_supported" type="array">
-        List of OAuth grant types supported by ZB ID.
-      </Property>
-      <Property name="token_endpoint_auth_methods_supported" type="array">
-        Authentication methods accepted at the token endpoint.
+        The OAuth grant types supported by ZB ID. Only `client_credentials` is advertised.
       </Property>
       <Property name="scopes_supported" type="array">
         List of scopes that can be requested during token issuance.
@@ -185,28 +182,6 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
       "grant_types_supported": [
         "client_credentials"
       ],
-      "token_endpoint_auth_methods_supported": [
-        "client_secret_basic",
-        "client_secret_post"
-      ],
-      "scopes_supported": [
-        "banking:read",
-        "banking:write",
-        "lending:read",
-        "lending:write",
-        "insurance:read",
-        "insurance:write",
-        "wealth:read",
-        "wealth:write",
-        "profile:read",
-        "profile:write",
-        "admin:users",
-        "admin:roles",
-        "admin:audit",
-        "admin:kyc",
-        "admin:config",
-        "admin:clients"
-      ],
       "response_types_supported": [
         "token"
       ],
@@ -215,6 +190,21 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
       ],
       "id_token_signing_alg_values_supported": [
         "RS256"
+      ],
+      "scopes_supported": [
+        "openid",
+        "profile",
+        "banking:read",
+        "banking:write",
+        "lending:read",
+        "lending:write",
+        "insurance:read",
+        "insurance:write",
+        "wealth:read",
+        "wealth:write",
+        "admin:users",
+        "admin:roles",
+        "admin:clients"
       ]
     }
     ```
