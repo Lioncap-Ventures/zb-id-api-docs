@@ -11,6 +11,8 @@ export const sections = [
   { title: 'Account lockout', id: 'account-lockout' },
   { title: 'Session management', id: 'session-management' },
   { title: 'Password management', id: 'password-management' },
+  { title: 'Password reset', id: 'password-reset' },
+  { title: 'Deactivating an account', id: 'deactivate-account' },
   { title: 'Refreshing tokens', id: 'refreshing-tokens' },
   { title: 'OAuth2 client credentials', id: 'oauth2-client-credentials' },
   { title: 'Token structure', id: 'token-structure' },
@@ -68,7 +70,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     <CodeGroup title="Request" tag="POST" label="/auth/register">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://zbid-api.lioncapventures.com/auth/register \
+    curl -X POST https://id.zb.co.zw/auth/register \
       -H "Content-Type: application/json" \
       -d '{
         "email": "tatenda.moyo@example.com",
@@ -83,7 +85,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     import requests
 
     response = requests.post(
-        'https://zbid-api.lioncapventures.com/auth/register',
+        'https://id.zb.co.zw/auth/register',
         headers={'Content-Type': 'application/json'},
         json={
             'email': 'tatenda.moyo@example.com',
@@ -101,7 +103,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://zbid-api.lioncapventures.com/auth/register',
+      'https://id.zb.co.zw/auth/register',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -191,7 +193,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     <CodeGroup title="Request" tag="POST" label="/auth/login">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://zbid-api.lioncapventures.com/auth/login \
+    curl -X POST https://id.zb.co.zw/auth/login \
       -H "Content-Type: application/json" \
       -d '{
         "email": "tatenda.moyo@example.com",
@@ -203,7 +205,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     import requests
 
     response = requests.post(
-        'https://zbid-api.lioncapventures.com/auth/login',
+        'https://id.zb.co.zw/auth/login',
         headers={'Content-Type': 'application/json'},
         json={
             'email': 'tatenda.moyo@example.com',
@@ -218,7 +220,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://zbid-api.lioncapventures.com/auth/login',
+      'https://id.zb.co.zw/auth/login',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -290,7 +292,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     {
       "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "aud": "zbid_client_a1b2c3d4e5f6",
-      "iss": "https://zbid-api.lioncapventures.com"
+      "iss": "https://id.zb.co.zw"
     }
     ```
 
@@ -387,7 +389,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     <CodeGroup title="Request" tag="POST" label="/auth/password/change">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://zbid-api.lioncapventures.com/auth/password/change \
+    curl -X POST https://id.zb.co.zw/auth/password/change \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
       -H "Content-Type: application/json" \
       -d '{
@@ -400,7 +402,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     import requests
 
     response = requests.post(
-        'https://zbid-api.lioncapventures.com/auth/password/change',
+        'https://id.zb.co.zw/auth/password/change',
         headers={
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json',
@@ -416,7 +418,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://zbid-api.lioncapventures.com/auth/password/change',
+      'https://id.zb.co.zw/auth/password/change',
       {
         method: 'POST',
         headers: {
@@ -439,6 +441,128 @@ ZB ID supports two authentication models: user authentication for end-user appli
     ```json {{ title: 'Response' }}
     {
       "message": "Password changed successfully"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Password reset {{ id: 'password-reset', tag: 'POST', label: '/auth/password/forgot' }}
+
+<Row>
+  <Col>
+
+    Users who have forgotten their password use a two-step, email-based reset: first request a reset link, then submit the emailed token with the new password. Both endpoints are public (no access token required).
+
+    ### Step 1: request a reset link
+
+    `POST /auth/password/forgot` emails a reset link to the account if one exists. To avoid revealing whether an email is registered, this endpoint **always returns `200`** with the same message whether or not the account exists.
+
+    <Properties>
+      <Property name="email" type="string">
+        The email address to send the reset link to. Required.
+      </Property>
+      <Property name="clientId" type="string">
+        Optional. Selects which app's branding and reset-link base the email uses. Defaults to `product-intel`.
+      </Property>
+    </Properties>
+
+    ### Step 2: reset the password
+
+    The emailed link carries a single-use, time-limited `token`. Submit it with the new password to `POST /auth/password/reset`.
+
+    <Properties>
+      <Property name="token" type="string">
+        The reset token from the emailed link. Required.
+      </Property>
+      <Property name="newPassword" type="string">
+        The new password. Must be between 8 and 128 characters. Required.
+      </Property>
+    </Properties>
+
+    Reset-link requests are rate limited to 5 per hour per IP address.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Step 1: request link" tag="POST" label="/auth/password/forgot">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://id.zb.co.zw/auth/password/forgot \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "user@example.com"
+      }'
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response (always 200)' }}
+    {
+      "message": "If an account exists, a reset link has been sent."
+    }
+    ```
+
+    <CodeGroup title="Step 2: reset password" tag="POST" label="/auth/password/reset">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://id.zb.co.zw/auth/password/reset \
+      -H "Content-Type: application/json" \
+      -d '{
+        "token": "b7f3c9e1-2a4d-4c8e-9f1a-6d2e5b8c7a30",
+        "newPassword": "newSecureP@ss2"
+      }'
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "message": "Password reset successfully."
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Deactivating an account {{ id: 'deactivate-account', tag: 'POST', label: '/auth/deactivate' }}
+
+<Row>
+  <Col>
+
+    An authenticated user can deactivate their own account. This requires a valid access token and re-confirmation of the account password. A deactivated account can no longer log in (login returns `403 ACCOUNT_LOCKED`).
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="password" type="string">
+        The account's current password, re-entered to confirm the action. Required.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/auth/deactivate">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://id.zb.co.zw/auth/deactivate \
+      -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "password": "secureP@ss1"
+      }'
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "message": "Account deactivated"
     }
     ```
 
@@ -472,7 +596,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     <CodeGroup title="Request" tag="POST" label="/auth/token/refresh">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://zbid-api.lioncapventures.com/auth/token/refresh \
+    curl -X POST https://id.zb.co.zw/auth/token/refresh \
       -H "Content-Type: application/json" \
       -d '{
         "refreshToken": "sT9kQ2mVr8..."
@@ -483,7 +607,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     import requests
 
     response = requests.post(
-        'https://zbid-api.lioncapventures.com/auth/token/refresh',
+        'https://id.zb.co.zw/auth/token/refresh',
         headers={'Content-Type': 'application/json'},
         json={'refreshToken': 'sT9kQ2mVr8...'}
     )
@@ -495,7 +619,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
 
     ```javascript {{ title: 'Node.js' }}
     const response = await fetch(
-      'https://zbid-api.lioncapventures.com/auth/token/refresh',
+      'https://id.zb.co.zw/auth/token/refresh',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -568,7 +692,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     <CodeGroup title="Request" tag="POST" label="/oauth/token">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://zbid-api.lioncapventures.com/oauth/token \
+    curl -X POST https://id.zb.co.zw/oauth/token \
       -H "Content-Type: application/x-www-form-urlencoded" \
       -d "grant_type=client_credentials" \
       -d "client_id=zbid_client_a1b2c3d4e5f6" \
@@ -580,7 +704,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     import requests
 
     response = requests.post(
-        'https://zbid-api.lioncapventures.com/oauth/token',
+        'https://id.zb.co.zw/oauth/token',
         data={
             'grant_type': 'client_credentials',
             'client_id': 'zbid_client_a1b2c3d4e5f6',
@@ -602,7 +726,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     })
 
     const response = await fetch(
-      'https://zbid-api.lioncapventures.com/oauth/token',
+      'https://id.zb.co.zw/oauth/token',
       {
         method: 'POST',
         headers: {
@@ -650,7 +774,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     | Claim | Type | Description |
     |-------|------|-------------|
     | `sub` | string | The user's UUID |
-    | `iss` | string | Token issuer (the ZB ID issuer identifier, `https://zbid-api.lioncapventures.com`) |
+    | `iss` | string | Token issuer (the ZB ID issuer identifier, `https://id.zb.co.zw`) |
     | `aud` | string | Token audience: the `clientId` supplied at login, or `zb-id` by default |
     | `iat` | number | Issued-at time as a Unix timestamp |
     | `exp` | number | Expiration time as a Unix timestamp |
@@ -668,7 +792,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     | Claim | Type | Description |
     |-------|------|-------------|
     | `sub` | string | The OAuth client id |
-    | `iss` | string | Token issuer (the ZB ID issuer identifier, `https://zbid-api.lioncapventures.com`) |
+    | `iss` | string | Token issuer (the ZB ID issuer identifier, `https://id.zb.co.zw`) |
     | `iat` | number | Issued-at time as a Unix timestamp |
     | `exp` | number | Expiration time as a Unix timestamp |
     | `jti` | string | Unique token identifier |
@@ -684,7 +808,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     ```json {{ title: 'Decoded user token payload' }}
     {
       "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "iss": "https://zbid-api.lioncapventures.com",
+      "iss": "https://id.zb.co.zw",
       "aud": "zb-id",
       "iat": 1717148800,
       "exp": 1717149700,
@@ -700,7 +824,7 @@ ZB ID supports two authentication models: user authentication for end-user appli
     ```json {{ title: 'Decoded client token payload' }}
     {
       "sub": "zbid_client_a1b2c3d4e5f6",
-      "iss": "https://zbid-api.lioncapventures.com",
+      "iss": "https://id.zb.co.zw",
       "iat": 1717148800,
       "exp": 1717149700,
       "jti": "c1d2e3f4-a5b6-0000-1111-222233334444",

@@ -168,7 +168,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     ```json {{ title: 'Example JWT scopes payload' }}
     {
       "sub": "550e8400-e29b-41d4-a716-446655440000",
-      "iss": "https://zbid-api.lioncapventures.com",
+      "iss": "https://id.zb.co.zw",
       "scopes": [
         "banking:read",
         "banking:write",
@@ -219,7 +219,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     <CodeGroup title="Request" tag="GET" label="/users/{userId}/roles">
 
     ```bash {{ title: 'cURL' }}
-    curl https://zbid-api.lioncapventures.com/users/550e8400-e29b-41d4-a716-446655440000/roles \
+    curl https://id.zb.co.zw/users/550e8400-e29b-41d4-a716-446655440000/roles \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
 
@@ -229,7 +229,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     user_id = '550e8400-e29b-41d4-a716-446655440000'
 
     response = requests.get(
-        f'https://zbid-api.lioncapventures.com/users/{user_id}/roles',
+        f'https://id.zb.co.zw/users/{user_id}/roles',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
         }
@@ -242,7 +242,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     const userId = '550e8400-e29b-41d4-a716-446655440000'
 
     const response = await fetch(
-      `https://zbid-api.lioncapventures.com/users/${userId}/roles`,
+      `https://id.zb.co.zw/users/${userId}/roles`,
       {
         headers: {
           'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
@@ -324,7 +324,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     <CodeGroup title="Request" tag="POST" label="/users/{userId}/roles">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://zbid-api.lioncapventures.com/users/550e8400-e29b-41d4-a716-446655440000/roles \
+    curl -X POST https://id.zb.co.zw/users/550e8400-e29b-41d4-a716-446655440000/roles \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
       -H "Content-Type: application/json" \
       -d '{
@@ -339,7 +339,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     user_id = '550e8400-e29b-41d4-a716-446655440000'
 
     response = requests.post(
-        f'https://zbid-api.lioncapventures.com/users/{user_id}/roles',
+        f'https://id.zb.co.zw/users/{user_id}/roles',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
             'Content-Type': 'application/json'
@@ -357,7 +357,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     const userId = '550e8400-e29b-41d4-a716-446655440000'
 
     const response = await fetch(
-      `https://zbid-api.lioncapventures.com/users/${userId}/roles`,
+      `https://id.zb.co.zw/users/${userId}/roles`,
       {
         method: 'POST',
         headers: {
@@ -426,7 +426,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     <CodeGroup title="Request" tag="DELETE" label="/users/{userId}/roles/{roleName}">
 
     ```bash {{ title: 'cURL' }}
-    curl -X DELETE https://zbid-api.lioncapventures.com/users/550e8400-e29b-41d4-a716-446655440000/roles/merchant \
+    curl -X DELETE https://id.zb.co.zw/users/550e8400-e29b-41d4-a716-446655440000/roles/merchant \
       -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
 
@@ -437,7 +437,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     role_name = 'merchant'
 
     response = requests.delete(
-        f'https://zbid-api.lioncapventures.com/users/{user_id}/roles/{role_name}',
+        f'https://id.zb.co.zw/users/{user_id}/roles/{role_name}',
         headers={
             'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
         }
@@ -451,7 +451,7 @@ ZB ID uses role-based access control (RBAC) to govern what each user can do acro
     const roleName = 'merchant'
 
     const response = await fetch(
-      `https://zbid-api.lioncapventures.com/users/${userId}/roles/${roleName}`,
+      `https://id.zb.co.zw/users/${userId}/roles/${roleName}`,
       {
         method: 'DELETE',
         headers: {

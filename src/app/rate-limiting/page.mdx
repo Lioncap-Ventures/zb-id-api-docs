@@ -28,21 +28,24 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
 
     <Properties>
       <Property name="Login" type="5 requests / 10 minutes">
-        Applies to `POST /auth/login`. Prevents brute-force OTP guessing. Limit is tracked per phone number.
+        Applies to `POST /auth/login`. Prevents password brute-forcing. Tracked per login identifier (the email or phone number used to sign in, normalised).
       </Property>
       <Property name="Register" type="10 requests / 60 minutes">
-        Applies to `POST /auth/register`. Prevents mass account creation. Limit is tracked per phone number.
+        Applies to `POST /auth/register`. Prevents mass account creation. Tracked per client IP address.
       </Property>
       <Property name="Token refresh" type="30 requests / 60 minutes">
-        Applies to `POST /auth/refresh`. Allows reasonable token rotation. Limit is tracked per user.
+        Applies to `POST /auth/token/refresh`. Allows reasonable token rotation. Tracked per client IP address.
+      </Property>
+      <Property name="Forgot password" type="5 requests / 60 minutes">
+        Applies to `POST /auth/password/forgot`. Throttles reset-link requests. Tracked per client IP address.
       </Property>
     </Properties>
 
     ### OAuth / Client credentials
 
     <Properties>
-      <Property name="Client credentials" type="60 requests / minute (default)">
-        Applies to `POST /oauth/token`. The default limit is 60 requests per minute, but each client application can have a custom `rateLimitPerMinute` value configured during client registration. Contact your administrator to adjust this limit for high-throughput integrations.
+      <Property name="Client credentials" type="60 requests / minute">
+        Applies to `POST /oauth/token`. Tracked per `client_id`. The limit is 60 requests per minute.
       </Property>
     </Properties>
 
@@ -50,17 +53,18 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
   <Col sticky>
 
     <Note>
-      **Custom rate limits:** OAuth client applications can be provisioned with a custom `rateLimitPerMinute` value that overrides the default of 60 requests per minute. This is configured at the time of client registration or through an administrative update.
+      **OAuth scope:** the client-credentials endpoint is limited to 60 requests per minute, counted per `client_id`, so one client's traffic never affects another's.
     </Note>
 
     ### Rate limit summary table
 
-    | Endpoint | Limit | Window |
-    |----------|-------|--------|
-    | Login | 5 requests | 10 minutes |
-    | Register | 10 requests | 60 minutes |
-    | Token refresh | 30 requests | 60 minutes |
-    | Client credentials | 60 requests (configurable) | 1 minute |
+    | Endpoint | Limit | Window | Scope |
+    |----------|-------|--------|-------|
+    | Login | 5 requests | 10 minutes | Login identifier |
+    | Register | 10 requests | 60 minutes | IP address |
+    | Token refresh | 30 requests | 60 minutes | IP address |
+    | Forgot password | 5 requests | 60 minutes | IP address |
+    | Client credentials | 60 requests | 1 minute | client_id |
 
   </Col>
 </Row>
@@ -77,14 +81,14 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
     ### Scope by endpoint
 
     <Properties>
-      <Property name="Login and Register" type="Per phone number">
-        Limits are tracked by the phone number in the request body. Each unique phone number has its own counter and sliding window.
+      <Property name="Login" type="Per login identifier">
+        Tracked by the email or phone number used to sign in (normalised). Each unique identifier has its own counter and sliding window.
       </Property>
-      <Property name="Token refresh" type="Per user">
-        Limits are tracked by the authenticated user's identity. Each user has their own counter regardless of which device or client they use.
+      <Property name="Register, Token refresh, Forgot password" type="Per IP address">
+        Tracked by the caller's IP address (the `X-Forwarded-For` client IP). Each source IP has its own counter.
       </Property>
       <Property name="Client credentials (OAuth)" type="Per client_id">
-        Limits are tracked by the `client_id` in the token request. Each registered OAuth client has its own counter and can have its own custom limit.
+        Tracked by the `client_id` in the token request. Each registered OAuth client has its own counter.
       </Property>
     </Properties>
 
@@ -92,7 +96,7 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
   <Col sticky>
 
     <Note>
-      **Per-phone scoping** on login and register endpoints means that an attacker targeting one phone number will not exhaust the rate limit for other phone numbers. This protects legitimate users from being locked out due to attacks on unrelated accounts.
+      **Login scoping:** login is throttled per login identifier, so an attacker targeting one account cannot exhaust the limit for other accounts. Register, token refresh, and forgot-password are throttled per source IP address.
     </Note>
 
   </Col>
@@ -111,12 +115,14 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
 
     ```json
     {
-      "error": "TOO_MANY_REQUESTS",
-      "message": "Rate limit exceeded. Please try again later.",
+      "error": "RATE_LIMIT_EXCEEDED",
+      "message": "Too many login attempts",
       "status": 429,
       "timestamp": "2026-05-31T10:30:00.123Z"
     }
     ```
+
+    The `message` varies by endpoint (`Too many login attempts`, `Too many registration attempts`, `Too many refresh attempts`, `Too many password reset requests`, or `Rate limit exceeded for client: <id>`), but the `error` code is always `RATE_LIMIT_EXCEEDED`.
 
     ### Exponential backoff strategy
 
@@ -142,9 +148,9 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
 
     for i in $(seq 1 $MAX_RETRIES); do
       RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-        -X POST https://zbid-api.lioncapventures.com/auth/login \
+        -X POST https://id.zb.co.zw/auth/login \
         -H "Content-Type: application/json" \
-        -d '{"phone": "+263771234567", "otp": "123456"}')
+        -d '{"phone": "+263771234567", "password": "SecurePass123"}')
 
       if [ "$RESPONSE" -ne 429 ]; then
         echo "Request succeeded with status $RESPONSE"
@@ -187,8 +193,8 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
 
     # Usage
     result = request_with_backoff(
-        'https://zbid-api.lioncapventures.com/auth/login',
-        {'phone': '+263771234567', 'otp': '123456'}
+        'https://id.zb.co.zw/auth/login',
+        {'phone': '+263771234567', 'password': 'SecurePass123'}
     )
     print(result.json())
     ```
@@ -220,13 +226,13 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
 
     // Usage
     const response = await requestWithBackoff(
-      'https://zbid-api.lioncapventures.com/auth/login',
+      'https://id.zb.co.zw/auth/login',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: '+263771234567',
-          otp: '123456',
+          password: 'SecurePass123',
         }),
       }
     )
@@ -274,7 +280,7 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
     1. **Cache tokens** instead of requesting new ones on every API call
     2. **Use refresh tokens** to rotate access tokens rather than re-authenticating
     3. **Implement backoff** in all client libraries to handle 429 responses automatically
-    4. **Monitor your usage** and request a custom `rateLimitPerMinute` for OAuth clients if your integration requires higher throughput
+    4. **Monitor your usage** and design around the published limits; contact the ZB ID team if a high-throughput integration needs a higher ceiling
 
   </Col>
   <Col sticky>
@@ -290,7 +296,7 @@ The ZB ID API enforces rate limits to protect against brute-force attacks, abuse
     | Algorithm | Sliding window (Redis sorted sets) |
     | Storage | Redis |
     | Degradation | Fail-open (requests allowed if Redis is down) |
-    | Scope | Per phone, per user, or per client_id |
+    | Scope | Per login identifier, per IP, or per client_id |
     | Response code | 429 Too Many Requests |
 
   </Col>

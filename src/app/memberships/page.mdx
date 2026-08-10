@@ -1,0 +1,248 @@
+export const metadata = {
+  title: 'App Memberships',
+  description:
+    'Record which ZB ID identities belong to which app, and with what app-scoped role, using the membership registry.',
+}
+
+export const sections = [
+  { title: 'Overview', id: 'overview' },
+  { title: 'The membership object', id: 'membership-object' },
+  { title: 'List memberships', id: 'list-memberships' },
+  { title: 'Grant a membership', id: 'grant-membership' },
+  { title: 'Revoke a membership', id: 'revoke-membership' },
+]
+
+# App Memberships
+
+The membership registry records which ZB ID identities belong to a consuming app, and with what app-scoped role. Apps use it to gate their own access (for example, "is this ZB ID user an admin of my console?") without inventing a separate user store. {{ className: 'lead' }}
+
+---
+
+## Overview {{ id: 'overview' }}
+
+<Row>
+  <Col>
+
+    Membership endpoints are service-to-service. Call them with a **client-credentials access token** (see [OAuth2 client credentials](/authentication#oauth2-client-credentials)), not a user token. The acting app is taken from the token's `client_id` (the JWT subject), which is signed and cannot be forged.
+
+    Two scopes govern access:
+
+    <Properties>
+      <Property name="app:memberships:read" type="scope">
+        Required to list memberships. Granted to your OAuth client.
+      </Property>
+      <Property name="app:memberships:write" type="scope">
+        Required to grant or revoke memberships. Granted to your OAuth client.
+      </Property>
+    </Properties>
+
+    An app can only read and write memberships for **its own** `client_id`. A `clientId` in a request body is optional, and if present it must equal the calling client; the server always writes the membership for the caller, never for the value in the body. Attempting to act for another client returns `403 FORBIDDEN`.
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      All membership routes are under `/v1/memberships` and require a client-credentials token. There is no user-facing membership endpoint.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## The membership object {{ id: 'membership-object' }}
+
+<Row>
+  <Col>
+
+    <Properties>
+      <Property name="id" type="string">
+        Unique membership identifier (UUID).
+      </Property>
+      <Property name="userId" type="string">
+        The ZB ID identity (user UUID) this membership belongs to.
+      </Property>
+      <Property name="clientId" type="string">
+        The `client_id` of the app the identity is a member of.
+      </Property>
+      <Property name="role" type="string">
+        The app-scoped role or label, for example `member`, `admin`, or `super_admin`. Defaults to `member`.
+      </Property>
+      <Property name="status" type="string">
+        `ACTIVE` or `REVOKED`.
+      </Property>
+      <Property name="grantedBy" type="string | null">
+        The user UUID that granted the membership, if recorded.
+      </Property>
+      <Property name="grantedByClient" type="string">
+        The `client_id` that granted the membership.
+      </Property>
+      <Property name="createdAt" type="string">
+        ISO 8601 timestamp when the membership was created.
+      </Property>
+      <Property name="updatedAt" type="string">
+        ISO 8601 timestamp when the membership was last updated.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    ```json {{ title: 'Membership object' }}
+    {
+      "id": "9c1e5f2a-7b3d-4e8a-a1c2-3d4e5f6a7b8c",
+      "userId": "3f0a1b2c-4d5e-6f70-8192-a3b4c5d6e7f8",
+      "clientId": "zbid_client_a1b2c3d4e5f6",
+      "role": "admin",
+      "status": "ACTIVE",
+      "grantedBy": null,
+      "grantedByClient": "zbid_client_a1b2c3d4e5f6",
+      "createdAt": "2026-08-01T09:00:00Z",
+      "updatedAt": "2026-08-01T09:00:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## List memberships {{ id: 'list-memberships', tag: 'GET', label: '/v1/memberships' }}
+
+<Row>
+  <Col>
+
+    Returns the memberships owned by the calling app. Requires the `app:memberships:read` scope.
+
+    ### Query parameters
+
+    <Properties>
+      <Property name="subject" type="string">
+        Optional. A ZB ID user UUID. When present, returns only that identity's memberships for the calling app.
+      </Property>
+      <Property name="clientId" type="string">
+        Optional. If present it must equal the calling client's own `client_id`; otherwise the request returns `403 FORBIDDEN`.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="GET" label="/v1/memberships">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://id.zb.co.zw/v1/memberships?subject=3f0a1b2c-4d5e-6f70-8192-a3b4c5d6e7f8 \
+      -H "Authorization: Bearer <client_credentials_token>"
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    [
+      {
+        "id": "9c1e5f2a-7b3d-4e8a-a1c2-3d4e5f6a7b8c",
+        "userId": "3f0a1b2c-4d5e-6f70-8192-a3b4c5d6e7f8",
+        "clientId": "zbid_client_a1b2c3d4e5f6",
+        "role": "admin",
+        "status": "ACTIVE",
+        "grantedBy": null,
+        "grantedByClient": "zbid_client_a1b2c3d4e5f6",
+        "createdAt": "2026-08-01T09:00:00Z",
+        "updatedAt": "2026-08-01T09:00:00Z"
+      }
+    ]
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Grant a membership {{ id: 'grant-membership', tag: 'POST', label: '/v1/memberships' }}
+
+<Row>
+  <Col>
+
+    Grants an app membership to a ZB ID identity for the calling app. Requires the `app:memberships:write` scope. Identify the subject by `userId` **or** `email` (at least one is required). Returns `404` if no matching identity exists.
+
+    ### Request body
+
+    <Properties>
+      <Property name="userId" type="string">
+        The ZB ID user UUID to grant membership to. Provide this or `email`.
+      </Property>
+      <Property name="email" type="string">
+        The identity's email, used to resolve the user when `userId` is not supplied.
+      </Property>
+      <Property name="role" type="string">
+        Optional app-scoped role. Defaults to `member`.
+      </Property>
+      <Property name="grantedBy" type="string">
+        Optional. The user UUID performing the grant, recorded for audit.
+      </Property>
+      <Property name="clientId" type="string">
+        Optional. If present it must equal the calling client's own `client_id`.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/v1/memberships">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://id.zb.co.zw/v1/memberships \
+      -H "Authorization: Bearer <client_credentials_token>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "ops.admin@example.com",
+        "role": "admin"
+      }'
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response (201)' }}
+    {
+      "id": "9c1e5f2a-7b3d-4e8a-a1c2-3d4e5f6a7b8c",
+      "userId": "3f0a1b2c-4d5e-6f70-8192-a3b4c5d6e7f8",
+      "clientId": "zbid_client_a1b2c3d4e5f6",
+      "role": "admin",
+      "status": "ACTIVE",
+      "grantedBy": null,
+      "grantedByClient": "zbid_client_a1b2c3d4e5f6",
+      "createdAt": "2026-08-01T09:00:00Z",
+      "updatedAt": "2026-08-01T09:00:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Revoke a membership {{ id: 'revoke-membership', tag: 'DELETE', label: '/v1/memberships/{id}' }}
+
+<Row>
+  <Col>
+
+    Revokes a membership owned by the calling app. Requires the `app:memberships:write` scope. Returns `204 No Content` on success, or `404 Not Found` if the membership does not exist or is not owned by the calling app.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="DELETE" label="/v1/memberships/{id}">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X DELETE https://id.zb.co.zw/v1/memberships/9c1e5f2a-7b3d-4e8a-a1c2-3d4e5f6a7b8c \
+      -H "Authorization: Bearer <client_credentials_token>"
+    ```
+
+    </CodeGroup>
+
+    ```text {{ title: 'Response' }}
+    204 No Content
+    ```
+
+  </Col>
+</Row>
