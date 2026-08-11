@@ -38,6 +38,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'ZBID_STAGING_BASE=https://id-staging.zb.co.zw,NEXT_PUBLIC_TRYIT_ENABLED=true'
       - '--memory'
       - '512Mi'
       - '--min-instances'

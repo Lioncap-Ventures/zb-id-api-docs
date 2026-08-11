@@ -156,6 +156,15 @@ The membership registry records which ZB ID identities belong to a consuming app
   </Col>
 </Row>
 
+<TryIt
+  method="GET"
+  path="/v1/memberships"
+  title="List memberships for the calling app"
+  description="This read requires the app:memberships:read scope, so a plain user token from a Try it login returns 403. Paste a client-credentials token that holds the scope to see the list. Read-only either way."
+  useToken
+  defaultQuery={{ subject: '' }}
+/>
+
 ---
 
 ## Grant a membership {{ id: 'grant-membership', tag: 'POST', label: '/v1/memberships' }}

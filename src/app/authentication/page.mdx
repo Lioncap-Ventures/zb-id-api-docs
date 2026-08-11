@@ -22,6 +22,10 @@ export const sections = [
 
 ZB ID supports two authentication models: user authentication for end-user applications and OAuth2 client credentials for service-to-service integrations. A user identity is a single account (identified by a UUID) that can carry an email, a phone number, or both. Email and phone are interchangeable login channels bound to that one identity. This guide covers registration, login, token audience, password management, and the structure of issued tokens. {{ className: 'lead' }}
 
+<Note>
+  These docs are interactive. The panels below run live against the ZB ID staging sandbox. Register a throwaway account, then sign in, and the access token carries across the token-scoped panels on this and other pages.
+</Note>
+
 ---
 
 ## Registration {{ id: 'registration', tag: 'POST', label: '/auth/register' }}
@@ -149,6 +153,20 @@ ZB ID supports two authentication models: user authentication for end-user appli
   </Col>
 </Row>
 
+<TryIt
+  method="POST"
+  path="/auth/register"
+  title="Register a throwaway test account"
+  description="Runs live against staging. Use a made-up email like you@example.com; the response includes an access token that the token-scoped panels on other pages will reuse."
+  seedsToken
+  defaultBody={{
+    email: 'tryit-user@example.com',
+    password: 'TestPass123!',
+    firstName: 'Test',
+    lastName: 'User',
+  }}
+/>
+
 ---
 
 ## User login {{ id: 'user-login', tag: 'POST', label: '/auth/login' }}
@@ -262,6 +280,18 @@ ZB ID supports two authentication models: user authentication for end-user appli
 
   </Col>
 </Row>
+
+<TryIt
+  method="POST"
+  path="/auth/login"
+  title="Sign in and seed a token"
+  description="Sign in with the account you registered above. A successful login captures the access token so the token-scoped panels (current user, sessions, introspection) can chain from it automatically."
+  seedsToken
+  defaultBody={{
+    email: 'tryit-user@example.com',
+    password: 'TestPass123!',
+  }}
+/>
 
 ---
 

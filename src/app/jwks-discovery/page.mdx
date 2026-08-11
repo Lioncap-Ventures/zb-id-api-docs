@@ -99,6 +99,13 @@ ZB ID exposes standard OpenID Connect discovery endpoints that allow services to
   </Col>
 </Row>
 
+<TryIt
+  method="GET"
+  path="/.well-known/jwks.json"
+  title="Fetch the live JWKS"
+  description="Public endpoint, no token needed. Returns the current signing keys used to verify ZB ID access tokens on staging."
+/>
+
 ---
 
 ## OpenID discovery {{ id: 'openid-discovery', tag: 'GET', label: '/.well-known/openid-configuration' }}

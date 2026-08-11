@@ -167,6 +167,16 @@ The token introspection endpoint allows ZB services to validate access tokens an
   </Col>
 </Row>
 
+<TryIt
+  method="POST"
+  path="/oauth/introspect"
+  title="Introspect your chained token"
+  description="Sign in on the Authentication page first. This panel drops that access token into the request body and validates it. With no token it returns active:false; with a valid one it returns the full claims set."
+  useToken
+  tokenBodyField="token"
+  defaultBody={{ token: 'paste-a-token-here' }}
+/>
+
 ---
 
 ## Usage patterns {{ id: 'usage-patterns' }}

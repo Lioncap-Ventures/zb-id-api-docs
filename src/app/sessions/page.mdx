@@ -146,6 +146,14 @@ Sessions track active authentication contexts for a user across devices and chan
   </Col>
 </Row>
 
+<TryIt
+  method="GET"
+  path="/sessions"
+  title="List your active sessions"
+  description="Uses the token from your last sign-in. Returns the active sessions for the signed-in identity, including the one created by your Try it login. With no token it returns 401."
+  useToken
+/>
+
 ---
 
 ## Revoke a session {{ id: 'revoke-a-session', tag: 'DELETE', label: '/sessions/{id}' }}

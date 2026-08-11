@@ -9,6 +9,8 @@ ENV NEXT_PUBLIC_BRAND_URL=zbid-docs.lioncapventures.com
 ENV NEXT_PUBLIC_BRAND_DESCRIPTION="Unified identity and authentication service for ZB Financial Holdings"
 ENV NEXT_PUBLIC_CONTACT_EMAIL=techsupport@lioncapventures.com
 ENV NEXT_PUBLIC_SUPPORT_EMAIL=techsupport@lioncapventures.com
+# Enable the interactive "Try it" console (inlined into the client bundle at build time).
+ENV NEXT_PUBLIC_TRYIT_ENABLED=true
 # Copy package.json to the working directory
 COPY package*.json pnpm-lock.yaml .npmrc ./
 
