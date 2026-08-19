@@ -412,7 +412,7 @@ The membership registry records which ZB ID identities belong to a consuming app
         The membership exists and is `ACTIVE`. Returned for a fresh grant and for an idempotent re-grant alike.
       </Property>
       <Property name="400" type="Bad Request">
-        `clientId` was missing or blank; or neither `userId` nor `email` was supplied; or `clientId` names an app that is not registered, which answers `BAD_REQUEST` with the message `Unknown clientId`.
+        Four distinct cases, told apart by the `message`: `clientId` absent entirely gives `Invalid request body`; `clientId` present but blank gives `clientId: clientId is required`; neither `userId` nor `email` supplied gives `Either a userId or an email is required`; and a `clientId` naming an app that is not registered gives `Unknown clientId`.
       </Property>
       <Property name="403" type="Forbidden">
         The token does not carry `admin:users`.
