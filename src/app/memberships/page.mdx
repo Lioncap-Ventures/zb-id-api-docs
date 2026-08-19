@@ -10,6 +10,10 @@ export const sections = [
   { title: 'List memberships', id: 'list-memberships' },
   { title: 'Grant a membership', id: 'grant-membership' },
   { title: 'Revoke a membership', id: 'revoke-membership' },
+  { title: 'Backoffice administration', id: 'backoffice' },
+  { title: 'List the members of a platform', id: 'admin-list-members' },
+  { title: 'Grant a membership on any app', id: 'admin-grant-membership' },
+  { title: 'Revoke any membership', id: 'admin-revoke-membership' },
 ]
 
 # App Memberships
@@ -42,7 +46,7 @@ The membership registry records which ZB ID identities belong to a consuming app
   <Col sticky>
 
     <Note>
-      All membership routes are under `/v1/memberships` and require a client-credentials token. There is no user-facing membership endpoint.
+      The routes under `/v1/memberships` all require a client-credentials token and are scoped to the calling app. Administrators acting across apps use the separate [backoffice routes](#backoffice) under `/v1/admin/memberships`.
     </Note>
 
   </Col>
@@ -251,6 +255,272 @@ The membership registry records which ZB ID identities belong to a consuming app
 
     ```text {{ title: 'Response' }}
     204 No Content
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Backoffice administration {{ id: 'backoffice' }}
+
+<Row>
+  <Col>
+
+    The routes above are scoped to the calling app: a client-credentials token's subject **is** its `client_id`, so an app can only read and write its own roll. That leaves nobody able to seed the first member of a brand-new app, because until someone is a member there is no app to act for.
+
+    The routes under `/v1/admin/memberships` close that gap. They are the administrator's cross-app path: one call can put an identity into **any** registered app, or take them out of it, whichever app owns the row.
+
+    They differ from `/v1/memberships` in three ways:
+
+    <Properties>
+      <Property name="Token" type="user access token">
+        Sign in with [`POST /auth/login`](/authentication#login) and use the returned `accessToken`. A client-credentials token is accepted too, but it records no human against the grant.
+      </Property>
+      <Property name="Permission" type="admin:users">
+        The token's `scopes` claim must contain `admin:users`. That comes from the signed-in user's **roles**, not from the OAuth client's `scopes` column, so an operator with the `admin` role holds it.
+      </Property>
+      <Property name="clientId" type="required, any app">
+        `clientId` names the app being written to and is required. Unlike `/v1/memberships`, it does not have to be the caller's own client.
+      </Property>
+    </Properties>
+
+    ### Who is recorded as the grantor
+
+    Never the request body. `grantedBy` is the acting administrator's ZB ID user id, taken from the token's `sub` claim, and `grantedByClient` is the app the token was minted for, taken from its `aud` claim. A client-credentials caller has no human behind it, so `grantedBy` is left `null`.
+
+    Every call to these two writes is recorded in the auth audit log as `ADMIN_MEMBERSHIP_GRANTED` or `ADMIN_MEMBERSHIP_REVOKED`, on success **and** on failure. The audit row is written against the subject whose membership changed, so the change appears on that person's own trail; the acting administrator travels alongside it in the row's metadata.
+
+  </Col>
+  <Col sticky>
+
+    <Note>
+      To populate a platform picker, list the registered apps with `GET /admin/clients` (note: that path is **not** versioned). It requires the `admin:clients` permission, which the `admin` role also holds, and returns `clientId`, `name` and `status` for every client.
+    </Note>
+
+    <Note>
+      These two writes are live on staging (`https://id-staging.zb.co.zw`) as of 19 August 2026 and are awaiting promotion to production. The read at `GET /v1/admin/memberships` is on both.
+    </Note>
+
+  </Col>
+</Row>
+
+---
+
+## List the members of a platform {{ id: 'admin-list-members', tag: 'GET', label: '/v1/admin/memberships' }}
+
+<Row>
+  <Col>
+
+    Returns one page of the membership roll for a single app, newest first, with each row resolved back to the ZB ID identity behind it. Requires `admin:users`.
+
+    ### Query parameters
+
+    <Properties>
+      <Property name="clientId" type="string">
+        Required. The app's `client_id`, for example `zb-banking-backoffice`. A missing value returns `400 BAD_REQUEST`.
+      </Property>
+      <Property name="page" type="integer">
+        Optional, zero-based. Defaults to `0`.
+      </Property>
+      <Property name="size" type="integer">
+        Optional. Defaults to `25` and is capped at `100`.
+      </Property>
+    </Properties>
+
+    ### Response
+
+    A paged envelope of `items`, `page`, `size` and `total`, where `total` is the count of all matching rows rather than the page size. Each item carries `id`, `userId`, `email`, `fullName`, `role`, `status` and `createdAt`. `email` and `fullName` are `null` when the membership points at an identity that no longer exists.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="GET" label="/v1/admin/memberships">
+
+    ```bash {{ title: 'cURL' }}
+    curl "https://id.zb.co.zw/v1/admin/memberships?clientId=zb-banking-backoffice" \
+      -H "Authorization: Bearer <admin_access_token>"
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "items": [
+        {
+          "id": "9c1e5f2a-7b3d-4e8a-a1c2-3d4e5f6a7b8c",
+          "userId": "3f0a1b2c-4d5e-6f70-8192-a3b4c5d6e7f8",
+          "email": "ops.admin@example.com",
+          "fullName": "Ops Admin",
+          "role": "member",
+          "status": "ACTIVE",
+          "createdAt": "2026-08-19T09:00:00Z"
+        }
+      ],
+      "page": 0,
+      "size": 25,
+      "total": 1
+    }
+    ```
+
+  </Col>
+</Row>
+
+<TryIt
+  method="GET"
+  path="/v1/admin/memberships"
+  title="List the members of one platform"
+  description="Sign in above with an operator holding the admin role, then set clientId to the app you want the roll for. Read-only."
+  useToken
+  defaultQuery={{ clientId: 'zb-digital-mall' }}
+/>
+
+---
+
+## Grant a membership on any app {{ id: 'admin-grant-membership', tag: 'POST', label: '/v1/admin/memberships' }}
+
+<Row>
+  <Col>
+
+    Grants a membership to any identity on any registered app. Requires `admin:users`.
+
+    The call is idempotent per `(user, app, role)`. Re-granting a membership that already exists re-activates a revoked row and re-stamps who granted it, rather than failing, and still answers `201`.
+
+    ### Request body
+
+    <Properties>
+      <Property name="clientId" type="string">
+        Required. The `client_id` of the app to grant membership on. It must exist in the OAuth client registry.
+      </Property>
+      <Property name="userId" type="string">
+        The ZB ID user UUID to grant membership to. Provide this or `email`.
+      </Property>
+      <Property name="email" type="string">
+        The identity's email, used to resolve the user when `userId` is not supplied. Matching is case-insensitive.
+      </Property>
+      <Property name="role" type="string">
+        Optional app-scoped role. Blank or absent defaults to `member`.
+      </Property>
+    </Properties>
+
+    There is deliberately no `grantedBy` field. Both provenance columns come from the verified token, so a caller cannot dictate who the audit trail says made the grant.
+
+    ### Status codes
+
+    <Properties>
+      <Property name="201" type="Created">
+        The membership exists and is `ACTIVE`. Returned for a fresh grant and for an idempotent re-grant alike.
+      </Property>
+      <Property name="400" type="Bad Request">
+        `clientId` was missing or blank; or neither `userId` nor `email` was supplied; or `clientId` names an app that is not registered, which answers `BAD_REQUEST` with the message `Unknown clientId`.
+      </Property>
+      <Property name="403" type="Forbidden">
+        The token does not carry `admin:users`.
+      </Property>
+      <Property name="404" type="Not Found">
+        No ZB ID identity matches the `userId` or `email` supplied. An empty body: only a missing **subject** answers 404, which is what distinguishes it from an unregistered app.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="POST" label="/v1/admin/memberships">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://id.zb.co.zw/v1/admin/memberships \
+      -H "Authorization: Bearer <admin_access_token>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "clientId": "zb-banking-backoffice",
+        "email": "ops.admin@example.com",
+        "role": "member"
+      }'
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response (201)' }}
+    {
+      "id": "9c1e5f2a-7b3d-4e8a-a1c2-3d4e5f6a7b8c",
+      "userId": "3f0a1b2c-4d5e-6f70-8192-a3b4c5d6e7f8",
+      "clientId": "zb-banking-backoffice",
+      "role": "member",
+      "status": "ACTIVE",
+      "grantedBy": "b61c83a4-7d52-4ca1-9bcf-c0030cb09dfa",
+      "grantedByClient": "zb-id-backoffice",
+      "createdAt": "2026-08-19T09:00:00Z",
+      "updatedAt": "2026-08-19T09:00:00Z"
+    }
+    ```
+
+    ```json {{ title: 'Response (400)' }}
+    {
+      "error": "BAD_REQUEST",
+      "message": "Unknown clientId",
+      "status": 400,
+      "timestamp": "2026-08-19T09:00:00Z"
+    }
+    ```
+
+  </Col>
+</Row>
+
+<Note>
+  There is no **Try it** panel on this endpoint or the one below. Both write to the staging registry, and a documentation page is the wrong place to grant somebody real access by accident.
+</Note>
+
+---
+
+## Revoke any membership {{ id: 'admin-revoke-membership', tag: 'DELETE', label: '/v1/admin/memberships/{id}' }}
+
+<Row>
+  <Col>
+
+    Revokes a membership by id, whichever app owns it. Requires `admin:users`. The row is set to `REVOKED` rather than deleted, so the grant and revoke history survives.
+
+    This is the administrator's path and is separate from [`DELETE /v1/memberships/{id}`](#revoke-membership) on purpose. That one still refuses to touch a membership belonging to another client, so an app holding a client-credentials token cannot reach across into someone else's roll.
+
+    ### Status codes
+
+    <Properties>
+      <Property name="204" type="No Content">
+        The membership is now `REVOKED`.
+      </Property>
+      <Property name="403" type="Forbidden">
+        The token does not carry `admin:users`.
+      </Property>
+      <Property name="404" type="Not Found">
+        No membership with that id exists.
+      </Property>
+      <Property name="409" type="Conflict">
+        Refused as a self-lockout: the membership is the caller's own, on the very app their token was minted for. Ask another administrator to make the change.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup title="Request" tag="DELETE" label="/v1/admin/memberships/{id}">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X DELETE https://id.zb.co.zw/v1/admin/memberships/9c1e5f2a-7b3d-4e8a-a1c2-3d4e5f6a7b8c \
+      -H "Authorization: Bearer <admin_access_token>"
+    ```
+
+    </CodeGroup>
+
+    ```text {{ title: 'Response' }}
+    204 No Content
+    ```
+
+    ```json {{ title: 'Response (409)' }}
+    {
+      "error": "CONFLICT",
+      "message": "This is your own membership on the app you are currently signed in through. Revoking it could lock you out of this tool, so the change is refused. Ask another administrator to make it.",
+      "status": 409,
+      "timestamp": "2026-08-19T09:00:00Z"
+    }
     ```
 
   </Col>
