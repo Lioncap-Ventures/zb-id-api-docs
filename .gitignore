@@ -1,3 +1,7 @@
 node_modules
 
 .next
+
+# Local pipeline-gate scratch output (gitleaks/semgrep/trivy reports) when the
+# gates image is run against a bind-mounted /workspace, as in CI.
+.gates

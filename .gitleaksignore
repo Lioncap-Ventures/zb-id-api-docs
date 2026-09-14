@@ -1,0 +1,119 @@
+# gitleaks exceptions for zb-id-api-docs. Every entry below is a documentation
+# code sample (curl commands and JSON response bodies in src/app/**/page.mdx)
+# showing an illustrative, truncated example value, never a real credential.
+# Verified fingerprint-by-fingerprint against the un-redacted source: every
+# match reduces to exactly ONE of four patterns:
+#   'eyJhbGciO...' / 'eyJhbGciOiJIUzI1...' / 'eyJhbGciOiJSUzI1...'
+#     a JWT header fragment truncated with '...' (no payload, no signature) in
+#     example curl "Authorization: Bearer ..." lines and example JSON token
+#     fields (accessToken/refreshToken). This is the SAME pattern already
+#     documented as a false positive in the sibling docs sites this content
+#     was seeded from (zb-notification-hub-docs .gitleaksignore, commit
+#     7992f707, "truncated JWT headers only").
+#   'zbid_secret_x9y8z7w6v5u4t3s2r1q0'
+#     the sequential placeholder OAuth client secret in oauth-clients/page.mdx,
+#     the exact same placeholder already named in that same sibling
+#     .gitleaksignore entry.
+#
+# TREE entries (still present in the working tree; these are the live doc
+# examples and are meant to stay, so each is pinned to the exact line rather
+# than removed): rule + line only, no commit segment (gitleaks `dir` mode).
+#
+/workspace/src/app/authentication/page.mdx:curl-auth-header:422
+/workspace/src/app/authentication/page.mdx:curl-auth-header:583
+/workspace/src/app/authentication/page.mdx:generic-api-key:133
+/workspace/src/app/authentication/page.mdx:generic-api-key:261
+/workspace/src/app/authentication/page.mdx:generic-api-key:669
+/workspace/src/app/authentication/page.mdx:generic-api-key:777
+/workspace/src/app/kyc/page.mdx:curl-auth-header:1059
+/workspace/src/app/kyc/page.mdx:curl-auth-header:166
+/workspace/src/app/kyc/page.mdx:curl-auth-header:339
+/workspace/src/app/kyc/page.mdx:curl-auth-header:501
+/workspace/src/app/kyc/page.mdx:curl-auth-header:604
+/workspace/src/app/kyc/page.mdx:curl-auth-header:692
+/workspace/src/app/kyc/page.mdx:curl-auth-header:761
+/workspace/src/app/kyc/page.mdx:curl-auth-header:870
+/workspace/src/app/kyc/page.mdx:curl-auth-header:980
+/workspace/src/app/oauth-clients/page.mdx:curl-auth-header:162
+/workspace/src/app/oauth-clients/page.mdx:curl-auth-header:248
+/workspace/src/app/oauth-clients/page.mdx:curl-auth-header:321
+/workspace/src/app/oauth-clients/page.mdx:curl-auth-header:402
+/workspace/src/app/oauth-clients/page.mdx:curl-auth-header:487
+/workspace/src/app/oauth-clients/page.mdx:curl-auth-header:562
+/workspace/src/app/oauth-clients/page.mdx:generic-api-key:124
+/workspace/src/app/oauth-clients/page.mdx:generic-api-key:216
+/workspace/src/app/quickstart/page.mdx:curl-auth-header:248
+/workspace/src/app/quickstart/page.mdx:generic-api-key:111
+/workspace/src/app/quickstart/page.mdx:generic-api-key:206
+/workspace/src/app/quickstart/page.mdx:generic-api-key:338
+/workspace/src/app/quickstart/page.mdx:generic-api-key:349
+/workspace/src/app/quickstart/page.mdx:generic-api-key:365
+/workspace/src/app/quickstart/page.mdx:generic-api-key:379
+/workspace/src/app/roles-permissions/page.mdx:curl-auth-header:222
+/workspace/src/app/roles-permissions/page.mdx:curl-auth-header:327
+/workspace/src/app/roles-permissions/page.mdx:curl-auth-header:429
+/workspace/src/app/sessions/page.mdx:curl-auth-header:174
+/workspace/src/app/sessions/page.mdx:curl-auth-header:236
+/workspace/src/app/sessions/page.mdx:curl-auth-header:302
+/workspace/src/app/sessions/page.mdx:curl-auth-header:91
+/workspace/src/app/token-introspection/page.mdx:generic-api-key:102
+/workspace/src/app/token-introspection/page.mdx:generic-api-key:123
+/workspace/src/app/token-introspection/page.mdx:generic-api-key:91
+/workspace/src/app/users/page.mdx:curl-auth-header:119
+/workspace/src/app/users/page.mdx:curl-auth-header:230
+/workspace/src/app/users/page.mdx:curl-auth-header:341
+/workspace/src/app/users/page.mdx:curl-auth-header:416
+/workspace/src/app/users/page.mdx:curl-auth-header:507
+
+# HISTORY entries: the same placeholder patterns as they appeared in five
+# earlier documentation commits (main history, all predating this hardening
+# branch). One fingerprint per finding, each pinned to its own commit so this
+# exception can never silently cover a credential added later.
+#
+08e7eea96363e90907d777d4c471205839ffae45:src/app/kyc/page.mdx:curl-auth-header:1059
+08e7eea96363e90907d777d4c471205839ffae45:src/app/kyc/page.mdx:curl-auth-header:870
+08e7eea96363e90907d777d4c471205839ffae45:src/app/kyc/page.mdx:curl-auth-header:980
+1c9dd054775b6bfbd13d82c84d31eb6cb86da437:src/app/authentication/page.mdx:curl-auth-header:553
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/authentication/page.mdx:curl-auth-header:147
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/authentication/page.mdx:generic-api-key:105
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/authentication/page.mdx:generic-api-key:106
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/oauth-clients/page.mdx:curl-auth-header:160
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/oauth-clients/page.mdx:curl-auth-header:245
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/oauth-clients/page.mdx:curl-auth-header:318
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/oauth-clients/page.mdx:curl-auth-header:399
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/oauth-clients/page.mdx:curl-auth-header:484
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/oauth-clients/page.mdx:curl-auth-header:559
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/oauth-clients/page.mdx:generic-api-key:124
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/oauth-clients/page.mdx:generic-api-key:215
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/quickstart/page.mdx:curl-auth-header:227
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/quickstart/page.mdx:generic-api-key:308
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/quickstart/page.mdx:generic-api-key:319
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/quickstart/page.mdx:generic-api-key:335
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/roles-permissions/page.mdx:curl-auth-header:205
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/roles-permissions/page.mdx:curl-auth-header:310
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/roles-permissions/page.mdx:curl-auth-header:412
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/sessions/page.mdx:curl-auth-header:166
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/sessions/page.mdx:curl-auth-header:228
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/sessions/page.mdx:curl-auth-header:294
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/sessions/page.mdx:curl-auth-header:91
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/token-introspection/page.mdx:generic-api-key:110
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/token-introspection/page.mdx:generic-api-key:78
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/token-introspection/page.mdx:generic-api-key:89
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/users/page.mdx:curl-auth-header:104
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/users/page.mdx:curl-auth-header:182
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/users/page.mdx:curl-auth-header:265
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/users/page.mdx:curl-auth-header:331
+2551323b71e84b9cb9b4b156151cbeee789720b9:src/app/users/page.mdx:curl-auth-header:411
+58e92dd34eb47acb16df63bc42a24c55d788d23e:src/app/authentication/page.mdx:generic-api-key:127
+58e92dd34eb47acb16df63bc42a24c55d788d23e:src/app/authentication/page.mdx:generic-api-key:241
+58e92dd34eb47acb16df63bc42a24c55d788d23e:src/app/authentication/page.mdx:generic-api-key:515
+58e92dd34eb47acb16df63bc42a24c55d788d23e:src/app/authentication/page.mdx:generic-api-key:623
+58e92dd34eb47acb16df63bc42a24c55d788d23e:src/app/quickstart/page.mdx:generic-api-key:107
+58e92dd34eb47acb16df63bc42a24c55d788d23e:src/app/quickstart/page.mdx:generic-api-key:202
+58e92dd34eb47acb16df63bc42a24c55d788d23e:src/app/quickstart/page.mdx:generic-api-key:375
+59e8adfcd1d55761d5f64dd044e33895537925a2:src/app/kyc/page.mdx:curl-auth-header:160
+59e8adfcd1d55761d5f64dd044e33895537925a2:src/app/kyc/page.mdx:curl-auth-header:333
+59e8adfcd1d55761d5f64dd044e33895537925a2:src/app/kyc/page.mdx:curl-auth-header:495
+59e8adfcd1d55761d5f64dd044e33895537925a2:src/app/kyc/page.mdx:curl-auth-header:598
+59e8adfcd1d55761d5f64dd044e33895537925a2:src/app/kyc/page.mdx:curl-auth-header:686
+59e8adfcd1d55761d5f64dd044e33895537925a2:src/app/kyc/page.mdx:curl-auth-header:755
