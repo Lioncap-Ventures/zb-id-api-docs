@@ -1,61 +1,309 @@
+# PRODUCTION build for the PUBLIC ZB ID API reference (zbid-docs.lioncapventures.com).
+#
+# Trigger: zb-id-api-docs-main, push to `main` (^main$), project zb-id-frontend,
+# connection LVOrg-EuropeWest1 (this project runs ITS OWN triggers; it is not
+# one of the repos hosted cross-project under lioncap-ventures-frontend). Cloud
+# Run service `zb-id-api-docs` lives in europe-north1, in THIS SAME project.
+#
+# This site has no partner gate: every page is public, and the Try-it proxy
+# holds no secret of ours at all (a visitor drives register/login against
+# STAGING ZB ID with their own token). So, unlike the C360/hub docs builds,
+# there is nothing to --set-secrets on the deploy step.
 steps:
-  # Build the Docker image
-  - name: 'gcr.io/cloud-builders/docker'
+  # ===========================================================================
+  # ESTATE PIPELINE GATES. Added by platform-devsecops; see gates/README.md
+  # there (repo ~/dev/platform-devsecops). Four blocking gates run before
+  # anything is pushed or deployed, one report-only, then DAST after deploy:
+  #   gate-sast     semgrep, all three runtimes plus the estate rules. ERROR blocks.
+  #   gate-secrets  gitleaks over the working tree AND full history.
+  #   gate-deps     trivy fs, fixable HIGH/CRITICAL in the dependency tree.
+  #   gate-image    trivy image, report-only for a Next standalone runner (below).
+  #   gate-dast     ZAP baseline + served-container route-guard probes, blocking,
+  #                 with an automatic rollback to the previously serving revision.
+  #
+  # CROSS-PROJECT NOTE: the gates image lives in Artifact Registry in
+  # lioncap-ventures-frontend (europe-west1-docker.pkg.dev/.../devsecops/gates:v1).
+  # This project's build service account (427269461965-compute@developer, the
+  # zb-id-frontend default compute SA) was granted roles/artifactregistry.reader
+  # on that ONE repository only, matching the same grant already held by eight
+  # other cross-project build service accounts on the identical repo. GH_TOKEN
+  # and the GlitchTip DSN below are read from secrets IN THIS PROJECT
+  # (zb-id-frontend), never from lioncap-ventures-frontend: gates/README.md is
+  # explicit that "a secret reference only resolves inside its own project", so
+  # every project that runs its own triggers keeps its own copies
+  # (`github-oauth-token`, `pipeline-gates-glitchtip-dsn`). No other IAM grant
+  # was needed: this project's compute SA already carries project-level
+  # roles/secretmanager.secretAccessor, which covers both.
+  #
+  # `unshallow` exists because Cloud Build hands a trigger a DEPTH-1 CLONE, and a
+  # history scan of one commit is a working-tree scan wearing a different name.
+  # `gates-ready` is a barrier, not a gate: nothing builds until it passes.
+  - id: 'unshallow'
+    name: 'gcr.io/cloud-builders/git'
+    entrypoint: 'bash'
+    secretEnv: ['GH_TOKEN']
+    args:
+      - '-c'
+      - |
+        set -e
+        git config --global credential.helper '!f() { echo username=x-access-token; echo password=$$GH_TOKEN; }; f'
+        git fetch --unshallow --quiet 2>/dev/null || git fetch --depth=2147483647 --quiet 2>/dev/null || true
+        echo "history depth: $(git rev-list --all --count) commits, shallow=$(git rev-parse --is-shallow-repository)"
+    waitFor: ['-']
+
+  - id: 'gates-export'
+    name: '${_GATES_IMAGE}'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'mkdir -p /workspace/.gates && cp /opt/gates/rules/zap-baseline.conf /workspace/.gates/zap-baseline.conf && chmod 0777 /workspace/.gates'
+    waitFor: ['-']
+
+  - id: 'gate-sast'
+    name: '${_GATES_IMAGE}'
+    entrypoint: 'bash'
+    env:
+      - 'GATE_REPO=${REPO_NAME}'
+      - 'GATE_BRANCH=${BRANCH_NAME}'
+      - 'GATE_COMMIT=${COMMIT_SHA}'
+      - 'GATE_BUILD_ID=${BUILD_ID}'
+      - 'GATE_PROJECT=${PROJECT_ID}'
+      - 'GATE_LOG_URL=https://console.cloud.google.com/cloud-build/builds;region=${LOCATION}/${BUILD_ID}?project=${PROJECT_ID}'
+    secretEnv: ['PIPELINE_GATES_GLITCHTIP_DSN']
+    args: ['-c', '/opt/gates/bin/sast.sh /workspace']
+    waitFor: ['-']
+
+  - id: 'gate-secrets'
+    name: '${_GATES_IMAGE}'
+    entrypoint: 'bash'
+    env:
+      - 'GATE_REPO=${REPO_NAME}'
+      - 'GATE_BRANCH=${BRANCH_NAME}'
+      - 'GATE_COMMIT=${COMMIT_SHA}'
+      - 'GATE_BUILD_ID=${BUILD_ID}'
+      - 'GATE_PROJECT=${PROJECT_ID}'
+      - 'GATE_LOG_URL=https://console.cloud.google.com/cloud-build/builds;region=${LOCATION}/${BUILD_ID}?project=${PROJECT_ID}'
+    secretEnv: ['PIPELINE_GATES_GLITCHTIP_DSN']
+    args: ['-c', '/opt/gates/bin/secrets.sh /workspace']
+    waitFor: ['unshallow']
+
+  # TRIVY STEP 1 OF 2. NEVER two trivy steps concurrently (shared DB cache;
+  # a prior build elsewhere died with "json decode error: EOF"). gate-image
+  # waits on this.
+  - id: 'gate-deps'
+    name: '${_GATES_IMAGE}'
+    entrypoint: 'bash'
+    env:
+      - 'GATE_REPO=${REPO_NAME}'
+      - 'GATE_BRANCH=${BRANCH_NAME}'
+      - 'GATE_COMMIT=${COMMIT_SHA}'
+      - 'GATE_BUILD_ID=${BUILD_ID}'
+      - 'GATE_PROJECT=${PROJECT_ID}'
+      - 'GATE_LOG_URL=https://console.cloud.google.com/cloud-build/builds;region=${LOCATION}/${BUILD_ID}?project=${PROJECT_ID}'
+    secretEnv: ['PIPELINE_GATES_GLITCHTIP_DSN']
+    args: ['-c', '/opt/gates/bin/deps.sh /workspace']
+    waitFor: ['-']
+
+  # Read BEFORE the deploy changes it: on a failed DAST scan, traffic goes back here.
+  - id: 'capture-revision'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        mkdir -p /workspace/.gates
+        gcloud run services describe ${_GATE_SERVICE} \
+          --project=${_GATE_DEPLOY_PROJECT} --region=${_GATE_REGION} --platform=managed \
+          --format='value(status.traffic[0].revisionName)' > /workspace/.gates/previous-revision.txt 2>/dev/null || true
+        echo "previous serving revision: $(cat /workspace/.gates/previous-revision.txt)"
+    waitFor: ['-']
+
+  - id: 'gates-ready'
+    name: 'gcr.io/cloud-builders/git'
+    entrypoint: 'bash'
+    args: ['-c', 'echo "static gates passed: sast, secrets, deps"']
+    waitFor: ['gate-sast', 'gate-secrets', 'gate-deps', 'gates-export', 'capture-revision']
+
+  - id: 'build'
+    name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      - '--build-arg'
-      - 'NEXT_PUBLIC_API_BASE=${_API_URL}'
-      - '--build-arg'
-      - 'NEXT_PUBLIC_DOCS_BASE=${_DOCS_URL}'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/zb-id-api-docs:$COMMIT_SHA'
+      - '${_IMAGE}:${COMMIT_SHA}'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/zb-id-api-docs:latest'
+      - '${_IMAGE}:latest'
       - '.'
+    waitFor: ['gates-ready']
 
-  # Push the Docker image to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/zb-id-api-docs:$COMMIT_SHA'
+  # TRIVY STEP 2 OF 2, serialised behind gate-deps. REPORT-ONLY for this service:
+  # a Next standalone runner's library findings live in the node:22-alpine base
+  # image (fixable only by a rebase), while the dependency tree this repository
+  # controls is gated, blocking, by gate-deps above.
+  - id: 'gate-image'
+    name: '${_GATES_IMAGE}'
+    entrypoint: 'bash'
+    allowFailure: true
+    env:
+      - 'GATE_REPO=${REPO_NAME}'
+      - 'GATE_BRANCH=${BRANCH_NAME}'
+      - 'GATE_COMMIT=${COMMIT_SHA}'
+      - 'GATE_BUILD_ID=${BUILD_ID}'
+      - 'GATE_PROJECT=${PROJECT_ID}'
+      - 'GATE_LOG_URL=https://console.cloud.google.com/cloud-build/builds;region=${LOCATION}/${BUILD_ID}?project=${PROJECT_ID}'
+    secretEnv: ['PIPELINE_GATES_GLITCHTIP_DSN']
+    args: ['-c', '/opt/gates/bin/image.sh ${_IMAGE}:${COMMIT_SHA}']
+    waitFor: ['gate-deps', 'build']
 
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/zb-id-api-docs:latest'
+  - id: 'push-sha'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_IMAGE}:${COMMIT_SHA}']
+    waitFor: ['build', 'gate-image']
 
-  # Deploy to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  - id: 'push-latest'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_IMAGE}:latest']
+    waitFor: ['push-sha']
+
+  - id: 'deploy'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
       - 'run'
       - 'deploy'
-      - 'zb-id-api-docs'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/zb-id-api-docs:$COMMIT_SHA'
-      - '--region'
-      - 'europe-north1'
-      - '--platform'
-      - 'managed'
+      - '${_GATE_SERVICE}'
+      - '--image=${_IMAGE}:${COMMIT_SHA}'
+      - '--project=${_GATE_DEPLOY_PROJECT}'
+      - '--region=${_GATE_REGION}'
+      - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars'
-      - 'ZBID_STAGING_BASE=https://id-staging.zb.co.zw,NEXT_PUBLIC_TRYIT_ENABLED=true'
-      - '--memory'
-      - '512Mi'
-      - '--min-instances'
-      - '0'
-      - '--max-instances'
-      - '3'
-      - '--port'
-      - '3000'
+      - '--port=3000'
+      - '--memory=512Mi'
+      - '--min-instances=0'
+      - '--max-instances=3'
+      # A blast-radius cap, not a latency knob: the Next 16.2.11 prefetch-hang
+      # estate finding (Next-Router-Prefetch: 1, no RSC header) hangs until the
+      # platform's own timeout. This site is on 15.5.25, unaffected, but the cap
+      # is estate-standard on every Next Cloud Run service.
+      - '--timeout=30'
+      - '--set-env-vars=ZBID_STAGING_BASE=https://id-staging.zb.co.zw,NEXT_PUBLIC_TRYIT_ENABLED=true'
+    waitFor: ['push-sha']
+
+  # ===========================================================================
+  # DAST, AND THE ROLLBACK THAT MAKES IT A GATE
+  # ===========================================================================
+  # serve-latest first: a DAST rollback PINS the service, so without it the scan
+  # below would test the OLD revision and a PASS would promote an unscanned one.
+  - id: 'serve-latest'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    waitFor: ['deploy']
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        gcloud run services update-traffic ${_GATE_SERVICE} \
+          --project=${_GATE_DEPLOY_PROJECT} --region=${_GATE_REGION} --platform=managed \
+          --to-latest
+
+  - id: 'dast-zap'
+    name: 'ghcr.io/zaproxy/zaproxy:2.16.1'
+    entrypoint: 'bash'
+    allowFailure: true
+    # Cloud Build's HOME=/builder/home is not writable by this image's user, and
+    # the ZAP automation framework writes $HOME/zap.yaml.
+    env:
+      - 'HOME=/workspace/.gates'
+    args:
+      - '-c'
+      - |
+        # ZAP prepends /zap/wrk to the report path even when it is absolute, and
+        # Cloud Build shares only /workspace between steps: /zap/wrk is made a
+        # symlink to the shared directory so the report lands where the gate reads.
+        rm -rf /zap/wrk 2>/dev/null || true
+        ln -s /workspace/.gates /zap/wrk 2>/dev/null || mkdir -p /zap/wrk
+        cd /workspace/.gates
+        zap-baseline.py -t ${_DAST_BASE_URL} -c zap-baseline.conf -J zap-baseline.json -m 3 -I || true
+        echo "--- /workspace/.gates after the scan ---"; ls -la /workspace/.gates || true
+    waitFor: ['serve-latest', 'gates-export']
+
+  - id: 'gate-dast'
+    name: '${_GATES_IMAGE}'
+    entrypoint: 'bash'
+    allowFailure: true
+    env:
+      - 'GATE_REPO=${REPO_NAME}'
+      - 'GATE_BRANCH=${BRANCH_NAME}'
+      - 'GATE_COMMIT=${COMMIT_SHA}'
+      - 'GATE_BUILD_ID=${BUILD_ID}'
+      - 'GATE_PROJECT=${PROJECT_ID}'
+      - 'GATE_LOG_URL=https://console.cloud.google.com/cloud-build/builds;region=${LOCATION}/${BUILD_ID}?project=${PROJECT_ID}'
+    secretEnv: ['PIPELINE_GATES_GLITCHTIP_DSN']
+    args: ['-c', '/opt/gates/bin/dast.sh ${_DAST_BASE_URL} /workspace/deploy/dast-routes.txt']
+    waitFor: ['dast-zap']
+
+  # Enforcement lives here: a failing step ends the build, and the rollback has
+  # to happen first. A PASS returns the service to serving LATEST (a rollback
+  # pins it, and a pinned service silently ignores every later deploy).
+  - id: 'dast-verdict'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -u
+        STATUS=$(python3 -c "import json;print(json.load(open('/workspace/.gates/dast.json'))['status'])" 2>/dev/null || echo MISSING)
+        SUMMARY=$(python3 -c "import json;print(json.load(open('/workspace/.gates/dast.json'))['summary'])" 2>/dev/null || echo "no dast result file")
+        echo "dast verdict: $$STATUS - $$SUMMARY"
+        if [ "$$STATUS" = "PASS" ]; then
+          gcloud run services update-traffic ${_GATE_SERVICE} \
+            --project=${_GATE_DEPLOY_PROJECT} --region=${_GATE_REGION} --platform=managed \
+            --to-latest
+          exit 0
+        fi
+        PREV=$(cat /workspace/.gates/previous-revision.txt 2>/dev/null || true)
+        if [ -n "$$PREV" ]; then
+          echo "rolling 100% of traffic back to $$PREV"
+          gcloud run services update-traffic ${_GATE_SERVICE} \
+            --project=${_GATE_DEPLOY_PROJECT} --region=${_GATE_REGION} --platform=managed \
+            --to-revisions=$$PREV=100
+        else
+          echo "NO PREVIOUS REVISION CAPTURED (first deploy of this service): the new revision stays serving."
+        fi
+        exit 1
+    waitFor: ['gate-dast']
 
 images:
-  - 'gcr.io/$PROJECT_ID/zb-id-api-docs:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/zb-id-api-docs:latest'
+  - '${_IMAGE}:${COMMIT_SHA}'
+  - '${_IMAGE}:latest'
+
+availableSecrets:
+  secretManager:
+    # This project's OWN copy of the GitHub token (connection LVOrg-EuropeWest1
+    # lives in zb-id-frontend itself), used only to deepen the depth-1 clone so
+    # the secret-history gate can scan it.
+    - versionName: projects/zb-id-frontend/secrets/github-oauth-token/versions/latest
+      env: 'GH_TOKEN'
+    # The gate alert poster's GlitchTip DSN, copied into THIS project because a
+    # Secret Manager reference only resolves inside its own project
+    # (platform-devsecops gates/README.md): every project that runs its own
+    # triggers keeps its own copy of the same estate DSN.
+    - versionName: projects/zb-id-frontend/secrets/pipeline-gates-glitchtip-dsn/versions/latest
+      env: 'PIPELINE_GATES_GLITCHTIP_DSN'
 
 substitutions:
+  _GATES_IMAGE: europe-west1-docker.pkg.dev/lioncap-ventures-frontend/devsecops/gates:v1
+  _GATE_SERVICE: zb-id-api-docs
+  _GATE_DEPLOY_PROJECT: zb-id-frontend
+  _GATE_REGION: europe-north1
+  _IMAGE: gcr.io/zb-id-frontend/zb-id-api-docs
+  _DAST_BASE_URL: https://zbid-docs.lioncapventures.com
+  # Retained so the existing trigger's _API_URL/_DOCS_URL substitutions (unused
+  # by this Dockerfile since the multi-stage rewrite) don't fail the build.
   _API_URL: ''
   _DOCS_URL: ''
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  substitutionOption: ALLOW_LOOSE
+
+timeout: '1800s'

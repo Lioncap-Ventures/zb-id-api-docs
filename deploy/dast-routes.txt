@@ -1,0 +1,17 @@
+# zb-id-api-docs: served-container route-guard probes for dast.sh.
+#
+# Passed as the 2nd argument of gates/bin/dast.sh from cloudbuild.yaml, so it
+# ships with the code it describes. One route per line; the probe sends each
+# with NO credentials in its path-shaped variants and ANY 2xx fails.
+#
+# UNLIKE the C360/hub docs sites, zbid-docs.lioncapventures.com carries NO
+# partner login and NO gated page: every page.mdx (/, /quickstart,
+# /authentication, ...) is PUBLIC 200 by design and is deliberately NOT listed
+# here (a route-guard probe would only ever report a false "unguarded route").
+#
+# The one route this service actually guards is the Try-it proxy
+# (src/app/api/try/route.ts): it accepts POST only, to an anchored regex
+# whitelist of staging ZB ID paths, and answers 405/400 to everything else.
+# No credential of ours is required or accepted, so a plain unauthenticated GET
+# (and every path-shaped variant below) must never answer 2xx.
+/api/try
