@@ -25,6 +25,8 @@
 
 import { NextResponse } from 'next/server'
 
+import { clientIpFrom } from '@/lib/client-ip'
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -80,10 +82,13 @@ const RATE_LIMIT = 30 // requests
 const RATE_WINDOW_MS = 60_000 // per 60s
 const hits = new Map<string, number[]>()
 
+// The throttle key. NEVER the first X-Forwarded-For entry: Cloud Run's front end
+// APPENDS the peer it saw, so every earlier entry is caller-written and rotating
+// it would mint a fresh bucket per request (plan finding F6). The key is the
+// LAST entry, or CF-Connecting-IP when that last entry is a Cloudflare edge
+// (src/lib/client-ip.ts).
 function clientIp(req: Request): string {
-  const fwd = req.headers.get('x-forwarded-for')
-  if (fwd) return fwd.split(',')[0]!.trim() // first hop is the client
-  return req.headers.get('x-real-ip')?.trim() || 'unknown'
+  return clientIpFrom(req.headers) ?? 'unknown'
 }
 
 function rateLimited(ip: string): boolean {

@@ -1,33 +1,49 @@
-# Use an official Node runtime as the base image
-FROM node:22.15.0 as build
+# Image for the ZB ID API reference (zbid-docs.lioncapventures.com).
+#
+# EVERY VALUE BAKED HERE IS PUBLIC. Nothing secret may ever be added: no ARG or
+# ENV carrying a credential. The Try-it proxy holds no secret at all (a visitor
+# drives register/login against STAGING ZB ID and the returned token is chained
+# in their own browser); its runtime settings come from the Cloud Run service.
+#
+# Multi-stage on a pinned major line, standalone Next output, non-root runner.
+FROM node:22-alpine AS base
 
-# Set the working directory in the container to /app
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN corepack enable pnpm && pnpm install --frozen-lockfile
 
-ENV NEXT_PUBLIC_BRAND_NAME="ZB ID"
-ENV NEXT_PUBLIC_BRAND_URL=zbid-docs.lioncapventures.com
-ENV NEXT_PUBLIC_BRAND_DESCRIPTION="Unified identity and authentication service for ZB Financial Holdings"
-ENV NEXT_PUBLIC_CONTACT_EMAIL=techsupport@lioncapventures.com
-ENV NEXT_PUBLIC_SUPPORT_EMAIL=techsupport@lioncapventures.com
-# Enable the interactive "Try it" console (inlined into the client bundle at build time).
-ENV NEXT_PUBLIC_TRYIT_ENABLED=true
-# Copy package.json to the working directory
-COPY package*.json pnpm-lock.yaml .npmrc ./
-
-# Install pnpm and the application dependencies
-RUN npm install -g pnpm@9 && pnpm install
-
-# Copy the rest of the application code to the working directory
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+# Shows the interactive "Try it" panels; inlined into the client bundle at build
+# time, so it has to be present here and not only at runtime.
+ENV NEXT_PUBLIC_TRYIT_ENABLED=true
+RUN corepack enable pnpm && pnpm build
 
-ARG NEXT_PUBLIC_API_BASE
-ARG NEXT_PUBLIC_DOCS_BASE
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build the application with API URLs injected at build time
-RUN NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_BASE} NEXT_PUBLIC_API_DOCS_URL=${NEXT_PUBLIC_DOCS_BASE} pnpm run build
+# Non-root. The runner executes `node server.js` and nothing else, so the base
+# image's npm, npx, corepack and yarn (and the libraries they vendor) go too.
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+      /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+      /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-*
 
-# Make port 3000 available to the outside world
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
 EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-# Run the application
-CMD ["pnpm", "run", "start"]
+CMD ["node", "server.js"]
