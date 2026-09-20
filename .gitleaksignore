@@ -19,6 +19,9 @@
 # examples and are meant to stay, so each is pinned to the exact line rather
 # than removed): rule + line only, no commit segment (gitleaks `dir` mode).
 #
+# reason: documentation placeholders (truncated JWT header fragments and the
+# sequential example OAuth client secret), never real credentials.
+# expires: 2026-12-31
 /workspace/src/app/authentication/page.mdx:curl-auth-header:422
 /workspace/src/app/authentication/page.mdx:curl-auth-header:583
 /workspace/src/app/authentication/page.mdx:generic-api-key:133
@@ -70,6 +73,9 @@
 # branch). One fingerprint per finding, each pinned to its own commit so this
 # exception can never silently cover a credential added later.
 #
+# reason: same documentation placeholder patterns as the TREE group above,
+# frozen in commits that predate this hardening branch.
+# expires: 2026-12-31
 08e7eea96363e90907d777d4c471205839ffae45:src/app/kyc/page.mdx:curl-auth-header:1059
 08e7eea96363e90907d777d4c471205839ffae45:src/app/kyc/page.mdx:curl-auth-header:870
 08e7eea96363e90907d777d4c471205839ffae45:src/app/kyc/page.mdx:curl-auth-header:980
